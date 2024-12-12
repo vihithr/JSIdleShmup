@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bullet Hell Game</title>
+    <style>
+        body {
+            background: linear-gradient(to bottom, #e0f7fa, #80deea);
+            font-family: Arial, sans-serif;
+            color: black;
+        }
+        canvas {
+            border: 1px solid #ffffff;
+            display: block;
+            margin: 20px auto;
+            background-color: #000;
+        }
+        #scoreboard {
+            text-align: center;
+            font-size: 24px;
+        }
+        .score {
+            margin: 10px 0;
+        }
+        #pauseButton {
+            display: block;
+            margin: 20px auto;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        #imageUploadContainer {
+            text-align: center;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="scoreboard">
+        <p class="score">Enemies Downed: <span id="enemiesDowned">0</span></p>
+        <p class="score">Player Hits: <span id="playerHits">0</span></p>
+        <p class="score">Power-Ups Collected: <span id="powerUpsCollected">0</span></p>
+        <p class="score">Press 'P' to Pause</p>
+    </div>
+    <button id="pauseButton">Pause</button>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="imageUploadContainer">
+        <label>Upload Player Image: <input type="file" id="playerImageUpload" accept="image/png"></label>
+        <label>Upload Enemy Image: <input type="file" id="enemyImageUpload" accept="image/png"></label>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let isPaused = false;
+        let player = {
+            x: canvas.width / 2,
+            y: canvas.height - 50,
+            width: 30,
+            height: 40,
+            hitboxRadius: 3,
+            bullets: [],
+            dragging: false,
+            hitCount: 0,
+            firePower: 3,
+            enhancedFirePower: false,
+            enhancedBulletCount: 0,
+            spreadAngle: Math.PI / 18
+        };
+
+        const maxEnhancedBullets = 100;
+        let enemies = [];
+        let enemyBullets = [];
+        let items = [];
+        let enemiesDowned = 0;
+        let powerUpsCollected = 0;
+        const enemySpawnInterval = 1500;
+        const minDistance = 50;
+        // 初始化玩家和敌人的图片
+        let playerImage = new Image();
+        let enemyImage = new Image();
+
+        // 设置默认图片为透明背景的PNG
+        playerImage.src = 'data:image/png;base64,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'; // 这里放置你的base64编码的玩家默认PNG
+        enemyImage.src = 'data:image/png;base64,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'; // 这里放置你的base64编码的敌人默认PNG
+
+        // 处理玩家图片上传
+        document.getElementById('playerImageUpload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    playerImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // 处理敌人图片上传
+        document.getElementById('enemyImageUpload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    enemyImage.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        function createEnemy(x, y) {
+            return {
+                x: x,
+                y: y,
+                width: 40,
+                height: 40,
+                health: 3
+            };
+        }
+
+        function spawnEnemies() {
+            setInterval(() => {
+                let x = Math.random() * (canvas.width - 60) + 30;
+                enemies.push(createEnemy(x, 50));
+            }, enemySpawnInterval);
+        }
+
+        function gameLoop() {
+            if (isPaused) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 绘制玩家
+            ctx.drawImage(playerImage, player.x - player.width / 2, player.y - player.height / 2, player.width, player.height);
+
+            // 绘制玩家的碰撞箱
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.9)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.hitboxRadius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // 绘制自动躲避检测范围
+            ctx.strokeStyle = 'rgba(255, 255, 0, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, minDistance, 0, Math.PI * 2);
+            ctx.stroke();
+
+            if (player.dragging) {
+                const mousePos = getMousePos();
+                ctx.strokeStyle = 'white';
+                ctx.beginPath();
+                ctx.moveTo(player.x, player.y);
+                ctx.lineTo(mousePos.x, mousePos.y);
+                ctx.stroke();
+            }
+
+            player.bullets.forEach((bullet, index) => {
+                bullet.y -= bullet.speed;
+                bullet.x += bullet.speedX;
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                enemies.forEach((enemy, enemyIndex) => {
+                    if (bullet.x > enemy.x - enemy.width / 2 &&
+                        bullet.x < enemy.x + enemy.width / 2 &&
+                        bullet.y > enemy.y - enemy.height / 2 &&
+                        bullet.y < enemy.y + enemy.height / 2) {
+                        enemy.health--;
+                        player.bullets.splice(index, 1);
+                        if (enemy.health <= 0) {
+                            enemies.splice(enemyIndex, 1);
+                            enemiesDowned++;
+                            document.getElementById('enemiesDowned').innerText = enemiesDowned;
+
+                            if (Math.random() < 0.3) {
+                                items.push({
+                                    x: enemy.x,
+                                    y: enemy.y,
+                                    width: 15,
+                                    height: 15
+                                });
+                            }
+                        }
+                    }
+                });
+            });
+
+            player.bullets = player.bullets.filter(b => b.y > 0);
+            let enemiesBulletSpeed = 1.5;
+
+            enemies.forEach(enemy => {
+                ctx.drawImage(enemyImage, enemy.x - enemy.width / 2, enemy.y - enemy.height / 2, enemy.width, enemy.height);
+
+                if (Math.random() < 0.03) {
+                    let numBullets = [2, 5, 7][Math.floor(Math.random() * 3)];
+                    let baseAngle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                    for (let i = 0; i < numBullets; i++) {
+                        let angleOffset = (i - (numBullets - 1) / 2) * (Math.PI / 6);
+                        let angle = baseAngle + angleOffset;
+                        let randomOffset = Math.random() * 0.3 * (Math.random() > 0.5 ? 1 : -1);
+                        let angleWithOffset = angle + randomOffset;
+
+                        enemyBullets.push({
+                            x: enemy.x,
+                            y: enemy.y,
+                            speedX: Math.cos(angleWithOffset) * enemiesBulletSpeed,
+                            speedY: Math.sin(angleWithOffset) * enemiesBulletSpeed
+                        });
+                    }
+                }
+            });
+
+            enemyBullets.forEach((bullet, index) => {
+                bullet.x += bullet.speedX;
+                bullet.y += bullet.speedY;
+                ctx.fillStyle = 'yellow';
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, 3, 0, Math.PI * 2);
+                ctx.fill();
+
+                let dx = bullet.x - player.x;
+                let dy = bullet.y - player.y;
+                if (Math.sqrt(dx * dx + dy * dy) < player.hitboxRadius) {
+                    console.log('Player hit!');
+                    enemyBullets.splice(index, 1);
+                    player.hitCount++;
+                    document.getElementById('playerHits').innerText = player.hitCount;
+                }
+            });
+
+            enemyBullets = enemyBullets.filter(b => b.y < canvas.height && b.y > 0 && b.x > 0 && b.x < canvas.width);
+
+            items.forEach((item, index) => {
+                item.y += 2;
+                ctx.fillStyle = 'green';
+                ctx.fillRect(item.x - item.width / 2, item.y - item.height / 2, item.width, item.height);
+
+                if (item.x > player.x - player.width / 2 &&
+                    item.x < player.x + player.width / 2 &&
+                    item.y > player.y - player.height / 2 &&
+                    item.y < player.y + player.height / 2) {
+                    items.splice(index, 1);
+                    player.enhancedFirePower = true;
+                    player.enhancedBulletCount = 0;
+                    player.firePower = 7 + Math.floor(Math.random() * 3) * 2;
+                    player.spreadAngle = Math.PI / 1.5;
+                    powerUpsCollected++;
+                    document.getElementById('powerUpsCollected').innerText = powerUpsCollected;
+                }
+            });
+
+            items = items.filter(i => i.y < canvas.height);
+
+            autoEvadeAndTarget();
+
+            if (player.enhancedFirePower) {
+                player.enhancedBulletCount++;
+                if (player.enhancedBulletCount > maxEnhancedBullets) {
+                    player.enhancedFirePower = false;
+                    player.firePower = 3;
+                    player.spreadAngle = Math.PI / 18;
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        let mouseX = 0;
+        let mouseY = 0;
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+            player.dragging = true;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            player.dragging = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            player.dragging = false;
+        });
+
+        function autoEvadeAndTarget() {
+            let totalMoveX = 0;
+            let totalMoveY = 0;
+
+            enemyBullets.forEach(bullet => {
+                let dx = bullet.x - player.x;
+                let dy = bullet.y - player.y;
+                if(dx < minDistance && dy < minDistance) {
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < minDistance) {
+                        let speed = 12 / (distance + 1);
+                        let moveX = Math.cos(Math.atan2(dy, dx)) * speed;
+                        let moveY = Math.sin(Math.atan2(dy, dx)) * speed;
+
+                        totalMoveX -= moveX;
+                        totalMoveY -= moveY;
+                    }
+                }
+            });
+
+            player.x += totalMoveX;
+            player.y += totalMoveY;
+
+            if (player.y < canvas.height / 2) {
+                player.y = canvas.height / 2;
+            }
+
+            if (!player.dragging) {
+                let closestEnemy = null;
+                let minDistance = Infinity;
+
+                enemies.forEach(enemy => {
+                    let dx = enemy.x - player.x;
+                    let dy = enemy.y - player.y;
+                    let distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closestEnemy = enemy;
+                    }
+                });
+
+                if (closestEnemy) {
+                    if (closestEnemy.x > player.x) {
+                        player.x += 1 * (closestEnemy.x - player.x)/150 + 0.8;
+                    } else {
+                        player.x -= 1 * (player.x - closestEnemy.x)/150 + 0.8;
+                    }
+                    if (closestEnemy.y > player.y) {
+                        player.y += 0.3;
+                    } else {
+                        player.y -= 0.3;
+                    }
+                    if (player.y < canvas.height/1.5)
+                    {
+                        player.y += 0.2;
+                    }
+                    else
+                    {
+                        player.y -= 0.2;
+                    }
+                }
+            } else {
+                if (mouseX > player.x) {
+                    player.x += 1 * (mouseX - player.x)/100 + 0.4;
+                } else {
+                    player.x -= 1 * (player.x - mouseX)/100 + 0.4;
+                }
+                if (mouseY > player.y) {
+                    player.y += 1 * (mouseY - player.y)/100 + 0.4;
+                } else {
+                    player.y -= 1 * (player.y - mouseY)/100 + 0.4;
+                }
+            }
+
+            if (player.x < player.width / 2) {
+                player.x = player.width / 2;
+            }
+            if (player.x > canvas.width - player.width / 2) {
+                player.x = canvas.width - player.width / 2;
+            }
+            if (player.y < player.height / 2) {
+                player.y = player.height / 2;
+            }
+            if (player.y > canvas.height - player.height / 2) {
+                player.y = canvas.height - player.height / 2;
+            }
+        }
+
+        function getMousePos() {
+            return {
+                x: mouseX,
+                y: mouseY
+            };
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            if (!isPaused) {
+                gameLoop();
+            }
+        }
+
+        setInterval(() => {
+            if (!isPaused) {
+                let bulletSpread = player.firePower;
+                let spreadAngle = player.spreadAngle;
+                for (let i = 0; i < bulletSpread; i++) {
+                    let angle = -spreadAngle + (spreadAngle * 2) * (i / (bulletSpread - 1));
+                    player.bullets.push({
+                        x: player.x + Math.sin(angle) * 10,
+                        y: player.y,
+                        speedX: Math.sin(angle) * 2,
+                        speed: 8
+                    });
+                }
+            }
+        }, 100);
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'p' || e.key === 'P') {
+                togglePause();
+            }
+        });
+
+        document.getElementById('pauseButton').addEventListener('click', togglePause);
+
+        spawnEnemies();
+        gameLoop();
+    </script>
+</body>
+</html>
