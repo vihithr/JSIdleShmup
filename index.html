@@ -3,52 +3,192 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bullet Hell Game</title>
+    <meta name="theme-color" content="#070b16">
+    <meta name="description" content="JS Idle Shmup — a browser bullet-hell / idle game that plays itself. Drag your ship with the mouse and grab power-ups.">
+    <title>JS Idle Shmup — Browser Bullet Hell</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23070b16'/%3E%3Cpath d='M32 8l7 20 18 4-18 5-7 19-7-19-18-5 18-4z' fill='%2322d3ee'/%3E%3C/svg%3E">
     <style>
+        :root {
+            --bg: #070b16;
+            --panel: #101827;
+            --line: #1e293b;
+            --cyan: #22d3ee;
+            --pink: #f472b6;
+            --lime: #a3e635;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+        }
+        * { box-sizing: border-box; }
         body {
-            background: linear-gradient(to bottom, #e0f7fa, #80deea);
-            font-family: Arial, sans-serif;
-            color: black;
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(900px 500px at 50% -12%, rgba(34, 211, 238, .13), transparent 70%),
+                radial-gradient(600px 400px at 100% 100%, rgba(244, 114, 182, .08), transparent 70%),
+                var(--bg);
+            color: var(--text);
+            font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
-        canvas {
-            border: 1px solid #ffffff;
+        .shell { width: min(880px, 100% - 32px); margin: 0 auto; padding: 28px 0 40px; }
+        .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+        .brand h1 {
+            margin: 0;
+            font-size: clamp(22px, 4vw, 32px);
+            letter-spacing: -.02em;
+            background: linear-gradient(90deg, var(--cyan), var(--pink));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        .brand p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+        .badge {
+            flex: none;
+            padding: 6px 10px;
+            border: 1px solid rgba(34, 211, 238, .35);
+            border-radius: 999px;
+            color: var(--cyan);
+            font: 600 10px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+            letter-spacing: .14em;
+            text-transform: uppercase;
+        }
+        .hud { display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; margin-bottom: 14px; }
+        .stat {
+            flex: 1 1 140px;
+            padding: 12px 14px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: linear-gradient(180deg, rgba(255, 255, 255, .035), transparent), var(--panel);
+        }
+        .stat .label {
             display: block;
-            margin: 20px auto;
-            background-color: #000;
+            color: var(--muted);
+            font: 600 10px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+            letter-spacing: .12em;
+            text-transform: uppercase;
         }
-        #scoreboard {
-            text-align: center;
-            font-size: 24px;
+        .stat .value { display: block; margin-top: 4px; font: 600 24px/1.1 ui-monospace, SFMono-Regular, Consolas, monospace; font-variant-numeric: tabular-nums; }
+        .stat.kills .value { color: var(--cyan); }
+        .stat.hits .value { color: var(--pink); }
+        .stat.power .value { color: var(--lime); }
+        .stage {
+            position: relative;
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            background: #000;
+            box-shadow: 0 18px 50px rgba(0, 0, 0, .55), 0 0 0 1px rgba(34, 211, 238, .06);
         }
-        .score {
-            margin: 10px 0;
+        .stage::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            background: repeating-linear-gradient(180deg, transparent 0 3px, rgba(255, 255, 255, .014) 3px 4px);
         }
-        #pauseButton {
-            display: block;
-            margin: 20px auto;
-            padding: 10px 20px;
-            font-size: 18px;
+        canvas { display: block; width: 100%; height: auto; background: #000; touch-action: none; }
+        .pause-overlay {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            background: rgba(7, 11, 22, .72);
+            backdrop-filter: blur(2px);
+            color: var(--cyan);
+            font: 600 28px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+            letter-spacing: .3em;
+            z-index: 2;
+        }
+        .pause-overlay[hidden] { display: none; }
+        .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 14px 0 0; }
+        button, summary {
+            font: 600 13px/1 ui-sans-serif, system-ui, sans-serif;
+            color: var(--text);
             cursor: pointer;
         }
-        #imageUploadContainer {
-            text-align: center;
-            margin: 20px;
+        #pauseButton {
+            padding: 11px 22px;
+            border: 1px solid rgba(34, 211, 238, .5);
+            border-radius: 999px;
+            background: rgba(34, 211, 238, .12);
+            color: var(--cyan);
+            transition: background .15s ease, transform .15s ease;
         }
+        #pauseButton:hover { background: rgba(34, 211, 238, .22); }
+        #pauseButton:active { transform: translateY(1px); }
+        .hint { color: var(--muted); font-size: 12px; }
+        kbd {
+            padding: 2px 6px;
+            border: 1px solid var(--line);
+            border-radius: 5px;
+            background: var(--panel);
+            font: 600 11px/1 ui-monospace, SFMono-Regular, Consolas, monospace;
+            color: var(--text);
+        }
+        details {
+            width: 100%;
+            margin-top: 14px;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: rgba(16, 24, 39, .6);
+        }
+        summary { padding: 12px 16px; color: var(--muted); list-style: none; }
+        summary::-webkit-details-marker { display: none; }
+        summary::before { content: "+ "; color: var(--cyan); }
+        details[open] summary::before { content: "− "; }
+        .options { display: flex; flex-wrap: wrap; gap: 16px; padding: 0 16px 16px; }
+        .options label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+        .options input {
+            max-width: 240px;
+            color: var(--text);
+            font: 12px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace;
+        }
+        @media (max-width: 560px) {
+            .topbar { flex-direction: column; gap: 12px; }
+            .badge { align-self: flex-start; }
+            .stat { flex: 1 1 120px; padding: 10px 12px; }
+            .stat .value { font-size: 20px; }
+        }
+        footer { margin-top: 24px; color: #64748b; font-size: 11px; text-align: center; }
+        footer a { color: var(--muted); text-decoration-color: var(--line); }
     </style>
 </head>
 <body>
-    <div id="scoreboard">
-        <p class="score">Enemies Downed: <span id="enemiesDowned">0</span></p>
-        <p class="score">Player Hits: <span id="playerHits">0</span></p>
-        <p class="score">Power-Ups Collected: <span id="powerUpsCollected">0</span></p>
-        <p class="score">Press 'P' to Pause</p>
-    </div>
-    <button id="pauseButton">Pause</button>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-    <div id="imageUploadContainer">
-        <label>Upload Player Image: <input type="file" id="playerImageUpload" accept="image/png"></label>
-        <label>Upload Enemy Image: <input type="file" id="enemyImageUpload" accept="image/png"></label>
-    </div>
+    <main class="shell">
+        <header class="topbar">
+            <div class="brand">
+                <h1>JS Idle Shmup</h1>
+                <p>A bullet-hell that plays itself. Drag your ship with the mouse, dodge everything, collect green power-ups.</p>
+            </div>
+            <span class="badge">Canvas 2D · No dependencies</span>
+        </header>
+
+        <section class="hud" aria-label="Game statistics">
+            <div class="stat kills"><span class="label">Enemies downed</span><span class="value" id="enemiesDowned">0</span></div>
+            <div class="stat hits"><span class="label">Player hits</span><span class="value" id="playerHits">0</span></div>
+            <div class="stat power"><span class="label">Power-ups</span><span class="value" id="powerUpsCollected">0</span></div>
+        </section>
+
+        <div class="stage">
+            <canvas id="gameCanvas" width="800" height="600" aria-label="Bullet hell game area"></canvas>
+            <div class="pause-overlay" id="pauseOverlay" hidden>PAUSED</div>
+        </div>
+
+        <div class="toolbar">
+            <button id="pauseButton" type="button" aria-pressed="false">Pause</button>
+            <span class="hint"><kbd>P</kbd> to pause · mouse / touch to steer</span>
+        </div>
+
+        <details>
+            <summary>Optional: use your own sprites</summary>
+            <div class="options">
+                <label>Player PNG<input type="file" id="playerImageUpload" accept="image/png"></label>
+                <label>Enemy PNG<input type="file" id="enemyImageUpload" accept="image/png"></label>
+            </div>
+        </details>
+
+        <footer>Open source by <a href="https://github.com/vihithr/JSIdleShmup">vihithr</a> · MIT</footer>
+    </main>
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -273,25 +413,32 @@
         let mouseX = 0;
         let mouseY = 0;
 
-        canvas.addEventListener('mousedown', (e) => {
+        // Convert viewport coordinates into the canvas' 800x600 game space,
+        // so mouse and touch stay accurate when the canvas is scaled by CSS.
+        function updatePointer(e) {
             const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
+            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        }
+
+        canvas.addEventListener('pointerdown', (e) => {
+            updatePointer(e);
             player.dragging = true;
+            if (e.pointerType === 'mouse') canvas.setPointerCapture(e.pointerId);
         });
 
-        canvas.addEventListener('mousemove', (e) => {
-            const rect = canvas.getBoundingClientRect();
-            mouseX = e.clientX - rect.left;
-            mouseY = e.clientY - rect.top;
-        });
+        canvas.addEventListener('pointermove', updatePointer);
 
-        canvas.addEventListener('mouseup', () => {
+        canvas.addEventListener('pointerup', () => {
             player.dragging = false;
         });
 
-        canvas.addEventListener('mouseleave', () => {
+        canvas.addEventListener('pointercancel', () => {
             player.dragging = false;
+        });
+
+        canvas.addEventListener('pointerleave', (e) => {
+            if (e.pointerType === 'mouse') player.dragging = false;
         });
 
         function autoEvadeAndTarget() {
@@ -391,6 +538,10 @@
 
         function togglePause() {
             isPaused = !isPaused;
+            const button = document.getElementById('pauseButton');
+            button.textContent = isPaused ? 'Resume' : 'Pause';
+            button.setAttribute('aria-pressed', String(isPaused));
+            document.getElementById('pauseOverlay').hidden = !isPaused;
             if (!isPaused) {
                 gameLoop();
             }

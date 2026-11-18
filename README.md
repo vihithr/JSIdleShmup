@@ -19,6 +19,7 @@ JS Idle Shmup is a browser-based bullet-hell / idle hybrid built with vanilla HT
 - Pause / resume with button or `P` key.
 - Image upload to customize player and enemy sprites (PNG).
 - On-screen stats: enemies downed, player hits, power-ups collected.
+- Responsive dark UI with a compact HUD, pause overlay and touch support.
 
 ### Quick Start
 1. Clone or download this repo.  
@@ -32,7 +33,7 @@ JS Idle Shmup is a browser-based bullet-hell / idle hybrid built with vanilla HT
 3. Visit `http://localhost:8000` (or the shown address) to play.
 
 ### Play Guide
-- Drag or move the mouse to steer; release to let auto-aim track the nearest enemy.
+- Drag with the mouse (or touch on mobile) to steer; release to let auto-aim track the nearest enemy.
 - Pick up green power-up boxes to boost firepower temporarily.
 - Use the pause button or press `P` to pause/resume.
 - Upload custom PNGs for player/enemy to personalize visuals.
@@ -65,6 +66,7 @@ JS Idle Shmup 是一个基于浏览器的弹幕放置混合小游戏，使用原
 - 通过按钮或 `P` 键暂停/继续。
 - 支持上传 PNG 自定义玩家和敌人贴图。
 - 屏显统计：击落数、被击次数、道具获取数。
+- 自适应深色界面，带紧凑 HUD、暂停遮罩与触屏支持。
 
 ### 快速开始
 1. 克隆或下载本仓库。  
@@ -78,7 +80,7 @@ JS Idle Shmup 是一个基于浏览器的弹幕放置混合小游戏，使用原
 3. 在浏览器访问 `http://localhost:8000`（或终端提示的地址）开始游戏。
 
 ### 游玩指南
-- 拖拽或移动鼠标控制角色，松开后自动瞄准最近的敌人。
+- 用鼠标拖拽（手机端用触摸）控制角色，松开后自动瞄准最近的敌人。
 - 拾取绿色道具箱可暂时提升火力。
 - 点击暂停按钮或按 `P` 键暂停/继续。
 - 可上传自定义 PNG 作为玩家和敌人贴图。
