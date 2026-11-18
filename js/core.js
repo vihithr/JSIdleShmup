@@ -82,6 +82,35 @@
       this.stats.candidates += out.length;
       return out;
     }
+    /* bitECS variant: buckets hold numeric entity IDs, de-duped by a flat stamp array. */
+    insertAt(id, x, y, r) {
+      for (let yy = y - r; yy <= y + r; yy += this.cell)
+        for (let xx = x - r; xx <= x + r; xx += this.cell) {
+          const k = this.key(xx, yy);
+          let bucket = this.map.get(k);
+          if (!bucket) this.map.set(k, bucket = []);
+          bucket.push(id);
+          this.stats.inserts++;
+        }
+    }
+    queryIds(x, y, radius, out) {
+      out = out || [];
+      out.length = 0;
+      if (!this.stamp) this.stamp = new Uint32Array(4096);
+      const g = ++this.gen;
+      for (let dy = -radius; dy <= radius; dy += this.cell)
+        for (let dx = -radius; dx <= radius; dx += this.cell) {
+          const bucket = this.map.get(this.key(x + dx, y + dy));
+          if (!bucket) continue;
+          for (const id of bucket) {
+            if (this.stamp[id] === g) continue;
+            this.stamp[id] = g; out.push(id);
+          }
+        }
+      this.stats.queries++;
+      this.stats.candidates += out.length;
+      return out;
+    }
   };
 
   /* Keyboard + pointer unified into a single steering input. */

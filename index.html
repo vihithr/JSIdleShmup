@@ -116,7 +116,7 @@
         }
         #pauseButton:hover { background: rgba(34, 211, 238, .22); }
         #pauseButton:active { transform: translateY(1px); }
-        #stageButton, #aiButton, #modeButton, #debugButton {
+        #stageButton, #aiButton, #modeButton, #debugButton, #assistButton {
             padding: 11px 18px;
             border: 1px solid var(--line);
             border-radius: 999px;
@@ -124,7 +124,7 @@
             color: var(--muted);
             transition: color .15s ease, border-color .15s ease;
         }
-        #stageButton:hover, #aiButton:hover, #modeButton:hover, #debugButton:hover { color: var(--text); border-color: #475569; }
+        #stageButton:hover, #aiButton:hover, #modeButton:hover, #debugButton:hover, #assistButton:hover { color: var(--text); border-color: #475569; }
         .hint { color: var(--muted); font-size: 12px; }
         kbd {
             padding: 2px 6px;
@@ -195,8 +195,8 @@
         <div class="toolbar">
             <button id="aiButton" type="button">AI: GRAZE</button>
             <button id="modeButton" type="button">Broadphase: HASH</button>
-            <button id="debugButton" type="button">Collisions: OFF</button>
-            <span class="hint"><kbd>G</kbd> AI · <kbd>B</kbd> broadphase · <kbd>V</kbd> debug · <kbd>N</kbd> stage · <kbd>P</kbd> pause</span>
+            <button id="assistButton" type="button">Drag assist: ON</button>`n            <button id="debugButton" type="button">Collisions: OFF</button>
+            <span class="hint"><kbd>G</kbd> AI · <kbd>B</kbd> broadphase · <kbd>V</kbd> debug · <kbd>A</kbd> assist · <kbd>N</kbd> stage · <kbd>P</kbd> pause</span>
         </div>
 
         <details>
@@ -210,12 +210,17 @@
 
         <footer>Open source by <a href="https://github.com/vihithr/JSIdleShmup">vihithr</a> · MIT</footer>
     </main>
+    <script src="js/vendor/bitecs.js"></script>
     <script src="js/core.js"></script>
+    <script src="js/ecs-world.js"></script>
+    <script src="js/brain.js"></script>
     <script src="js/background.js"></script>
     <script src="js/entities.js"></script>
     <script src="js/collision.js"></script>
     <script src="js/enemies.js"></script>
+    <script src="js/systems.js"></script>
     <script src="js/stages.js"></script>
+    <script src="js/policy.js"></script>
     <script src="js/game.js"></script>
     <script>
     (function () {
@@ -244,6 +249,7 @@
       document.getElementById('stageButton').addEventListener('click', function () { game.nextStage(); });
       document.getElementById('aiButton').addEventListener('click', function () { game.cycleAI(); });
       document.getElementById('modeButton').addEventListener('click', function () { game.toggleBroadphase(); });
+      document.getElementById('assistButton').addEventListener('click', function () { game.toggleAssist(); });
       document.getElementById('debugButton').addEventListener('click', function () { game.toggleDebug(); });
       addEventListener('keydown', function (e) {
         if (e.code === 'KeyP') game.togglePause();
@@ -251,6 +257,7 @@
         if (e.code === 'KeyG') game.cycleAI();
         if (e.code === 'KeyB') game.toggleBroadphase();
         if (e.code === 'KeyV') game.toggleDebug();
+        if (e.code === 'KeyA') game.toggleAssist();
       });
 
       new SH.Loop(1 / 60, function (dt) { game.update(dt); }, function () { game.render(); }).start();

@@ -75,7 +75,7 @@
       // Continuous ambient stream: scripted waves are the highlights, but an
       // idle game needs an endless supply of targets and bullet patterns.
       this.ambient -= dt;
-      if (this.ambient <= 0 && game.enemies.length < 60) {
+      if (this.ambient <= 0 && game.enemyIds.length < 60) {
         this.ambient = Math.max(.16, .55 - this.stage * .07);
         const pool = this.stage === 0 ? ['drifter', 'drifter', 'weaver', 'bomber']
           : this.stage === 1 ? ['drifter', 'weaver', 'orbiter', 'sniper', 'bomber']
@@ -103,7 +103,7 @@
         game.spawn(s.boss, SH.W / 2, -60, { hp: Math.round(260 * (1 + this.stage * .25)) });
         game.popup(SH.W / 2, 90, 'WARNING', '#f87171');
       }
-      if (this.bossSpawned && !game.enemies.some(e => e.boss) && !this.cleared) {
+      if (this.bossSpawned && !game.enemyIds.some(id => game.world.components.Enemy.boss[id]) && !this.cleared) {
         this.cleared = true;
         game.onStageClear();
       }
