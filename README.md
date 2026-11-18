@@ -46,7 +46,7 @@ JS Idle Shmup is a browser-based bullet-hell / idle hybrid built with vanilla HT
 - Feel free to modularize the script into separate files (e.g., `js/` and `css/`) if you extend the game.
 
 ### License
-Specify your license here (e.g., MIT).
+MIT — see [LICENSE](LICENSE).
 
 ---
 
@@ -92,5 +92,5 @@ JS Idle Shmup 是一个基于浏览器的弹幕放置混合小游戏，使用原
 - 若需扩展，可将脚本与样式拆分至独立文件（如 `js/`、`css/`）。
 
 ### 许可
-请在此处补充项目许可（例如 MIT）。
+MIT，详见 [LICENSE](LICENSE)。
 
