@@ -116,7 +116,7 @@
         }
         #pauseButton:hover { background: rgba(34, 211, 238, .22); }
         #pauseButton:active { transform: translateY(1px); }
-        #stageButton {
+        #stageButton, #aiButton, #modeButton, #debugButton {
             padding: 11px 18px;
             border: 1px solid var(--line);
             border-radius: 999px;
@@ -124,7 +124,7 @@
             color: var(--muted);
             transition: color .15s ease, border-color .15s ease;
         }
-        #stageButton:hover { color: var(--text); border-color: #475569; }
+        #stageButton:hover, #aiButton:hover, #modeButton:hover, #debugButton:hover { color: var(--text); border-color: #475569; }
         .hint { color: var(--muted); font-size: 12px; }
         kbd {
             padding: 2px 6px;
@@ -178,6 +178,8 @@
             <div class="stat power"><span class="label">Firepower</span><span class="value" id="powerUpsCollected">1</span></div>
             <div class="stat"><span class="label">Score</span><span class="value" id="scoreValue">0</span></div>
             <div class="stat"><span class="label">Shield</span><span class="value" id="shieldValue">3/3</span></div>
+            <div class="stat"><span class="label">Graze</span><span class="value" id="grazeValue" style="color:#fbbf24">0</span></div>
+            <div class="stat"><span class="label">Culled</span><span class="value" id="cullValue" style="color:#94a3b8">0%</span></div>
         </section>
 
         <div class="stage">
@@ -188,7 +190,12 @@
         <div class="toolbar">
             <button id="pauseButton" type="button" aria-pressed="false">Pause</button>
             <button id="stageButton" type="button">Next stage</button>
-            <span class="hint"><kbd>P</kbd> pause · <kbd>N</kbd> stage · <kbd>Shift</kbd> focus · <kbd>Space</kbd> dash · WASD / mouse / touch</span>
+        </div>
+        <div class="toolbar">
+            <button id="aiButton" type="button">AI: GRAZE</button>
+            <button id="modeButton" type="button">Broadphase: HASH</button>
+            <button id="debugButton" type="button">Collisions: OFF</button>
+            <span class="hint"><kbd>G</kbd> AI · <kbd>B</kbd> broadphase · <kbd>V</kbd> debug · <kbd>N</kbd> stage · <kbd>P</kbd> pause</span>
         </div>
 
         <details>
@@ -205,6 +212,7 @@
     <script src="js/core.js"></script>
     <script src="js/background.js"></script>
     <script src="js/entities.js"></script>
+    <script src="js/collision.js"></script>
     <script src="js/enemies.js"></script>
     <script src="js/stages.js"></script>
     <script src="js/game.js"></script>
@@ -233,9 +241,15 @@
 
       document.getElementById('pauseButton').addEventListener('click', function () { game.togglePause(); });
       document.getElementById('stageButton').addEventListener('click', function () { game.nextStage(); });
+      document.getElementById('aiButton').addEventListener('click', function () { game.cycleAI(); });
+      document.getElementById('modeButton').addEventListener('click', function () { game.toggleBroadphase(); });
+      document.getElementById('debugButton').addEventListener('click', function () { game.toggleDebug(); });
       addEventListener('keydown', function (e) {
         if (e.code === 'KeyP') game.togglePause();
         if (e.code === 'KeyN') game.nextStage();
+        if (e.code === 'KeyG') game.cycleAI();
+        if (e.code === 'KeyB') game.toggleBroadphase();
+        if (e.code === 'KeyV') game.toggleDebug();
       });
 
       new SH.Loop(1 / 60, function (dt) { game.update(dt); }, function () { game.render(); }).start();

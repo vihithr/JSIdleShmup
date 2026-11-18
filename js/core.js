@@ -44,11 +44,16 @@
     }
   };
 
-  /* Uniform-grid spatial hash narrows bullet/enemy tests to nearby cells. */
+  /* Uniform-grid broadphase with generation-stamped de-duplication.
+     Objects inserted in several cells are returned once per query without
+     allocating a Set every frame. */
   SH.SpatialHash = class SpatialHash {
-    constructor(cell = 90) { this.cell = cell; this.map = new Map(); }
+    constructor(cell = 100) {
+      this.cell = cell; this.map = new Map();
+      this.gen = 0; this.stats = { inserts: 0, queries: 0, candidates: 0 };
+    }
     key(x, y) { return ((x / this.cell) | 0) + ',' + ((y / this.cell) | 0); }
-    clear() { this.map.clear(); }
+    clear() { this.map.clear(); this.stats.inserts = 0; this.stats.queries = 0; this.stats.candidates = 0; }
     insert(obj) {
       const r = obj.r || 10;
       for (let y = obj.y - r; y <= obj.y + r; y += this.cell)
@@ -57,16 +62,24 @@
           let bucket = this.map.get(k);
           if (!bucket) this.map.set(k, bucket = []);
           bucket.push(obj);
+          this.stats.inserts++;
         }
     }
-    query(x, y, radius) {
-      const out = [], seen = new Set();
+    query(x, y, radius, out) {
+      out = out || [];
+      out.length = 0;
+      const g = ++this.gen;
       for (let dy = -radius; dy <= radius; dy += this.cell)
         for (let dx = -radius; dx <= radius; dx += this.cell) {
           const bucket = this.map.get(this.key(x + dx, y + dy));
           if (!bucket) continue;
-          for (const o of bucket) if (!seen.has(o)) { seen.add(o); out.push(o); }
+          for (const o of bucket) {
+            if (o._q === g) continue;
+            o._q = g; out.push(o);
+          }
         }
+      this.stats.queries++;
+      this.stats.candidates += out.length;
       return out;
     }
   };

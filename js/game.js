@@ -11,6 +11,8 @@
       this.bg = new SH.Background();
       this.director = new SH.Director();
       this.hash = new SH.SpatialHash(100);
+      this.collision = new SH.Collision();
+      this.aiMode = 'graze';
       this.bullets = new SH.Pool(() => new SH.Bullet());
       this.particles = new SH.Pool(() => new SH.Particle());
       this.popups = new SH.Pool(() => new SH.Popup());
@@ -53,6 +55,24 @@
     }
 
     nextStage() { this.bg.next(); this.director.start(this.bg.index); }
+    cycleAI() {
+      this.aiMode = this.aiMode === 'graze' ? 'evade' : this.aiMode === 'evade' ? 'hunt' : 'graze';
+      const b = document.getElementById('aiButton');
+      if (b) b.textContent = 'AI: ' + this.aiMode.toUpperCase();
+      return this.aiMode;
+    }
+    toggleDebug() {
+      this.collision.toggleDebug();
+      const b = document.getElementById('debugButton');
+      if (b) b.textContent = this.collision.debug ? 'Collisions: ON' : 'Collisions: OFF';
+      return this.collision.debug;
+    }
+    toggleBroadphase() {
+      this.collision.toggleMode();
+      const b = document.getElementById('modeButton');
+      if (b) b.textContent = 'Broadphase: ' + this.collision.mode.toUpperCase();
+      return this.collision.mode;
+    }
     onStageClear() {
       this.score += 1000 * (this.bg.index + 1);
       this.popup(W / 2, H / 2, 'STAGE CLEAR  +' + 1000 * (this.bg.index + 1), '#a3e635');
@@ -66,26 +86,55 @@
       document.getElementById('pauseOverlay').hidden = !this.paused;
     }
 
-    /* --- idle auto-pilot: dodge nearby bullets, drift toward weakest enemy --- */
+    /* --- Idle AI: potential-field steering. This is the primary player. ---
+       Three strategies trade score against survival:
+         graze — hold near the graze ring to farm combo
+         evade — stronger repulsion, maximum safety
+         hunt  — chase enemies, ignore minor threats                    */
     autopilot(dt) {
       const p = this.player;
+      const mode = this.aiMode;
+      const danger = mode === 'evade' ? 130 : mode === 'hunt' ? 52 : 92;
+      const strength = mode === 'evade' ? 520 : mode === 'hunt' ? 190 : 330;
       let ax = 0, ay = 0;
+
       for (const b of this.bullets.used) {
         if (b.friendly) continue;
         const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy);
-        if (d < 95 && d > .1) { const f = (95 - d) / 95 * 320; ax -= dx / d * f; ay -= dy / d * f; }
+        if (d > danger || d < .01) continue;
+        // Inverse-square-like repulsion, stronger the closer the bullet gets.
+        const f = Math.pow(1 - d / danger, 2) * strength;
+        ax -= dx / d * f; ay -= dy / d * f;
+        if (mode === 'graze' && d > p.r + b.r + 8 && d < p.grazeR) {
+          // Hold just outside the hitbox: grazing scores without risking a hit.
+          ax += dx / d * f * .45; ay += dy / d * f * .45;
+        }
       }
+
       let target = null, best = Infinity;
       for (const e of this.enemies) {
         const d = Math.hypot(e.x - p.x, e.y - p.y);
         if (d < best) { best = d; target = e; }
       }
+      const hunt = mode === 'hunt' ? 2.1 : mode === 'graze' ? 1.35 : .7;
+      if (target) {
+        ax += SH.clamp((target.x - p.x) * hunt, -120, 120);
+        ay += SH.clamp((target.y - p.y) * hunt * .35, -45, 45);
+      }
+      for (const it of this.items) {
+        const dx = it.x - p.x, dy = it.y - p.y, d = Math.hypot(dx, dy);
+        if (d < 190) { ax += dx / d * 130; ay += dy / d * 130; }
+      }
+      // Keep away from the screen edges and the bullet-spawning ceiling.
+      ax += (W / 2 - p.x) * .22;
+      ay += (H * .72 - p.y) * .28;
+      ax += Math.sin(this.elapsed * .9) * 18;
+
       if (!this.input.pointer.down && !this.input.axis.x && !this.input.axis.y) {
-        if (target) { ax += SH.clamp((target.x - p.x) * 1.5, -90, 90); ay += SH.clamp((target.y - p.y) * .35, -40, 40); }
-        const desiredX = SH.clamp(p.x + ax * dt, 20, W - 20);
-        const desiredY = SH.clamp(p.y + ay * dt, H / 2, H - 20);
-        p.autoX = SH.lerp(p.autoX, desiredX, .18);
-        p.autoY = SH.lerp(p.autoY, desiredY, .18);
+        const nx = SH.clamp(p.x + ax * dt, 24, W - 24);
+        const ny = SH.clamp(p.y + ay * dt, H / 2, H - 24);
+        p.autoX = SH.lerp(p.autoX, nx, .16);
+        p.autoY = SH.lerp(p.autoY, ny, .16);
       }
       return target;
     }
@@ -106,7 +155,7 @@
       for (const p of this.particles.used) p.update(dt);
       for (const p of this.popups.used) p.update(dt);
 
-      this.collide();
+      this.collision.step(this, dt);
 
       for (let i = this.items.length - 1; i >= 0; i--) {
         const it = this.items[i];
@@ -125,41 +174,6 @@
       this.target = target;
     }
 
-    collide() {
-      this.hash.clear();
-      for (const e of this.enemies) this.hash.insert(e);
-      const p = this.player;
-
-      for (const b of this.bullets.used) {
-        if (b.dead || b.friendly) continue;
-        const dx = b.x - p.x, dy = b.y - p.y;
-        if (dx * dx + dy * dy < (b.r + p.r) * (b.r + p.r)) {
-          b.dead = true;
-          if (p.hit(this)) break;
-        }
-      }
-
-      for (const b of this.bullets.used) {
-        if (b.dead || !b.friendly) continue;
-        for (const e of this.hash.query(b.x, b.y, 40)) {
-          if (e.dead) continue;
-          const dx = b.x - e.x, dy = b.y - e.y, rr = b.r + e.r;
-          if (dx * dx + dy * dy > rr * rr) continue;
-          b.dead = true;
-          const killed = e.hit(b.damage);
-          this.particles.acquire().reset(b.x, b.y, SH.rand(-40, 40), SH.rand(-60, 0), .22, '#fef08a', 3);
-          if (killed) {
-            this.score += e.score;
-            p.combo++;
-            this.popup(e.x, e.y, '+' + e.score, '#fde68a');
-            this.burst(e.x, e.y, e.color, e.boss ? 60 : 14);
-            if (!e.boss && Math.random() < .14) this.items.push({ x: e.x, y: e.y });
-          }
-          break;
-        }
-      }
-    }
-
     render() {
       const ctx = this.ctx;
       this.bg.draw(ctx);
@@ -169,6 +183,7 @@
       for (const p of this.particles.used) p.draw(ctx);
       this.player.draw(ctx, this.target);
       for (const p of this.popups.used) p.draw(ctx);
+      this.collision.draw(ctx, this);
 
       // DOM HUD
       const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
@@ -177,6 +192,8 @@
       set('powerUpsCollected', this.player.power);
       set('scoreValue', this.score.toLocaleString());
       set('shieldValue', this.player.shield + '/' + this.player.maxShield);
+      set('grazeValue', this.player.graze);
+      set('cullValue', this.collision.stats.culled + '%');
     }
   };
 

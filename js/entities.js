@@ -5,7 +5,9 @@
 
   SH.Bullet = class Bullet {
     reset(x, y, vx, vy, opts) {
-      this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+      this.x = x; this.y = y; this.px = x; this.py = y;
+      this.vx = vx; this.vy = vy;
+      this.grazed = false;
       this.r = opts.r || 4; this.color = opts.color || '#fff';
       this.friendly = !!opts.friendly; this.damage = opts.damage || 1;
       this.shape = opts.shape || 'orb'; this.life = opts.life || 6;
@@ -13,6 +15,7 @@
       return this;
     }
     update(dt) {
+      this.px = this.x; this.py = this.y;
       this.x += this.vx * dt; this.y += this.vy * dt;
       this.life -= dt;
       if (this.life <= 0 || this.x < -30 || this.x > W + 30 || this.y < -30 || this.y > H + 30) this.dead = true;
@@ -65,6 +68,7 @@
       this.type = type; this.def = def;
       this.x = x; this.y = y; this.homeX = x; this.homeY = y;
       this.vx = opts.vx || 0; this.vy = opts.vy || 0;
+      this.speed = def.speed || 60;
       this.hp = opts.hp || def.hp; this.maxHp = this.hp;
       this.r = def.r; this.score = def.score; this.color = def.color;
       this.t = 0; this.fire = def.fireDelay ? SH.rand(.2, def.fireDelay) : 0;
@@ -133,10 +137,10 @@
     reset() {
       this.x = W / 2; this.y = H - 70;
       this.vx = 0; this.vy = 0;
-      this.r = 4; this.size = 16;
+      this.r = 4; this.size = 16; this.grazeR = 30;
       this.shield = 3; this.maxShield = 3;
       this.invuln = 0; this.dash = 0; this.dashCd = 0;
-      this.fireTimer = 0; this.power = 1; this.combo = 0;
+      this.fireTimer = 0; this.power = 1; this.combo = 0; this.graze = 0;
       this.lastHit = 0; this.autoX = W / 2; this.autoY = H - 70;
     }
     update(dt, input, game) {
@@ -200,8 +204,8 @@
         ctx.fillStyle = '#22d3ee'; ctx.fillRect(this.x - 3, this.y - 8, 6, 10);
       }
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = 'rgba(250,204,21,.75)'; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(this.x, this.y, 50, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = 'rgba(250,204,21,.35)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(this.x, this.y, this.grazeR, 0, TAU); ctx.stroke();
       ctx.fillStyle = '#ff3b3b';
       ctx.beginPath(); ctx.arc(this.x, this.y, this.r, 0, TAU); ctx.fill();
       if (autoTarget) {
