@@ -20,7 +20,6 @@
         this.brainNet = new brain.NeuralNetwork();
         this.brainNet.fromJSON(SH.BRAIN_NET_JSON);
       }
-      this.aiMode = this.brainNet ? 'ensemble' : SH.POLICY_WEIGHTS ? 'neural' : 'graze';
       this.assist = true;
       this.playerId = bitECS.addEntity(this.world);
       bitECS.addComponent(this.world, this.playerId, this.world.components.Player);
@@ -160,12 +159,6 @@
       if (b) { b.textContent = this.paused ? 'Resume' : 'Pause'; b.setAttribute('aria-pressed', String(this.paused)); }
       const ov = document.getElementById('pauseOverlay'); if (ov) ov.hidden = !this.paused;
     }
-    cycleAI() {
-      const modes = this.brainNet ? ['ensemble', 'brain', 'neural', 'graze', 'evade', 'hunt'] : SH.POLICY_WEIGHTS ? ['neural', 'graze', 'evade', 'hunt'] : ['graze', 'evade', 'hunt'];
-      this.aiMode = modes[(modes.indexOf(this.aiMode) + 1) % modes.length];
-      const b = document.getElementById('aiButton'); if (b) b.textContent = 'AI: ' + this.aiMode.toUpperCase();
-      return this.aiMode;
-    }
     toggleAssist() {
       this.assist = !this.assist;
       const b = document.getElementById('assistButton'); if (b) b.textContent = 'Drag assist: ' + (this.assist ? 'ON' : 'OFF');
@@ -199,70 +192,30 @@
       return s;
     }
 
+    /* Single pilot: average of the evolved MLP and the evolved brain.js net. */
     autopilot() {
       const p = this.player;
-      if ((this.aiMode === 'brain' || this.aiMode === 'ensemble') && this.brainNet) {
-        const f = this.brain.features(this);
-        const o = SH.BRAIN_TANH ? this.brainNet.run(Array.from(f))
-                                : this.brainNet.run(Array.from(f, v => (v + 1) / 2));
-        let ax = SH.BRAIN_TANH ? SH.clamp(o[0], -1, 1) : SH.clamp(o[0] * 2 - 1, -1, 1);
-        let ay = SH.BRAIN_TANH ? SH.clamp(o[1], -1, 1) : SH.clamp(o[1] * 2 - 1, -1, 1);
-        if (this.aiMode === 'ensemble') {
-          const m = this.brain.forward(f);
-          ax = SH.clamp(ax * .5 + m[0] * .5, -1, 1);
-          ay = SH.clamp(ay * .5 + m[1] * .5, -1, 1);
-        }
-        return { x: p.x + ax * 95, y: p.y + ay * 95 };
-      }
-      if (this.aiMode === 'neural') {
-        const out = this.brain.forward(this.brain.features(this));
-        return { x: p.x + out[0] * 95, y: p.y + out[1] * 95 };
-      }
-      const C = this.world.components, P = C.Position, E = C.Enemy;
-      const mode = this.aiMode;
-      const sampleR = mode === 'evade' ? 40 : mode === 'graze' ? 28 : 18;
-      const threatW = mode === 'evade' ? 1.5 : mode === 'graze' ? 1 : .65;
-      const grazeW = mode === 'graze' ? .5 : .08;
-      const chaseW = mode === 'hunt' ? 1 : mode === 'graze' ? .45 : .25;
-      let target = -1, best = Infinity;
-      for (const id of this.enemyIds) {
-        if (E.dead[id]) continue;
-        const d = Math.hypot(P.x[id] - p.x, P.y[id] - p.y);
-        if (d < best) { best = d; target = id; }
-      }
-      const panic = this.threatAt(p.x, p.y, 0) > 14 ? 1.5 : 1;
-      let score0 = Infinity, bx = p.x, by = p.y;
-      for (let i = -1; i < 16; i++) {
-        const a = i / 16 * TAU;
-        const x = i < 0 ? p.x : SH.clamp(p.x + Math.cos(a) * sampleR * panic, 24, W - 24);
-        const y = i < 0 ? p.y : SH.clamp(p.y + Math.sin(a) * sampleR * panic, H / 2, H - 24);
-        let score = this.threatAt(x, y, grazeW) * threatW;
-        if (target >= 0) score -= (220 - Math.min(220, Math.hypot(P.x[target] - x, P.y[target] - y))) * .012 * chaseW;
-        for (const id of this.itemIds) { const d = Math.hypot(P.x[id] - x, P.y[id] - y); if (d < 160) score -= (160 - d) * .02; }
-        score += Math.abs(W / 2 - x) * .0006 + Math.abs(H * .72 - y) * .0012;
-        if (score < score0) { score0 = score; bx = x; by = y; }
-      }
-      return { x: bx, y: by };
+      const f = this.brain.features(this);
+      const o = SH.BRAIN_TANH ? this.brainNet.run(Array.from(f))
+                              : this.brainNet.run(Array.from(f, v => (v + 1) / 2));
+      let ax = SH.clamp(o[0], -1, 1), ay = SH.clamp(o[1], -1, 1);
+      const m = this.brain.forward(f);
+      ax = SH.clamp(ax * .5 + m[0] * .5, -1, 1);
+      ay = SH.clamp(ay * .5 + m[1] * .5, -1, 1);
+      return { x: p.x + ax * 95, y: p.y + ay * 95 };
     }
 
+    /* Drag assist: the same ensemble nudges the target away from bullets. */
     assistedTarget(tx, ty) {
       if (!this.assist) return { x: tx, y: ty };
       const p = this.player;
-      let ax, ay;
-      if (this.brainNet) {
-        const f = this.brain.features(this);
-        const o = SH.BRAIN_TANH ? this.brainNet.run(Array.from(f))
-                                : this.brainNet.run(Array.from(f, v => (v + 1) / 2));
-        ax = SH.BRAIN_TANH ? SH.clamp(o[0], -1, 1) : SH.clamp(o[0] * 2 - 1, -1, 1);
-        ay = SH.BRAIN_TANH ? SH.clamp(o[1], -1, 1) : SH.clamp(o[1] * 2 - 1, -1, 1);
-      } else {
-        const o = this.brain.forward(this.brain.features(this));
-        ax = o[0]; ay = o[1];
-      }
+      const dir = this.autopilot();
+      const ax = SH.clamp((dir.x - p.x) / 95, -1, 1);
+      const ay = SH.clamp((dir.y - p.y) / 95, -1, 1);
       const k = Math.min(1, this.threatAt(p.x, p.y, 0) / 12);
       return {
-        x: SH.clamp(tx + ax * 70 * k, 24, W - 24),
-        y: SH.clamp(ty + ay * 70 * k, H / 2, H - 24)
+        x: SH.clamp(tx + ax * 70 * k, 24, SH.W - 24),
+        y: SH.clamp(ty + ay * 70 * k, SH.H / 2, SH.H - 24)
       };
     }
 
