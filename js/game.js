@@ -47,7 +47,7 @@
         autoX: W / 2, autoY: H - 70, sprite: null
       };
       C.Position.x[this.playerId] = W / 2; C.Position.y[this.playerId] = H - 70;
-      this.score = 0; this.elapsed = 0; this.hits = 0;
+      this.score = 0; this.elapsed = 0; this.hits = 0; this.bottomTime = 0;
       this.director.start(0);
       this.bg.setStage(0);
     }
@@ -202,8 +202,8 @@
                               : this.brainNet.run(Array.from(f, v => (v + 1) / 2));
       let ax = SH.clamp(o[0], -1, 1), ay = SH.clamp(o[1], -1, 1);
       const m = this.brain.forward(f);
-      ax = SH.clamp(ax * .2 + m[0] * .8, -1, 1);
-      ay = SH.clamp(ay * .2 + m[1] * .8, -1, 1);
+      ax = SH.clamp(ax * .8 + m[0] * .2, -1, 1);
+      ay = SH.clamp(ay * .8 + m[1] * .2, -1, 1);
       p.lastActionX = ax; p.lastActionY = ay;
       return { x: p.x + ax * 95, y: p.y + ay * 95 };
     }
@@ -261,6 +261,8 @@
     update(dt) {
       if (this.paused) return;
       this.elapsed += dt;
+      const pl = this.player;
+      if (pl.y > SH.H * .78) { this.bottomTime += dt; this.score = Math.max(0, this.score - 220 * dt); }
       if (!SH.HEADLESS) this.bg.update(dt);
       this.updatePlayer(dt);
       this.director.update(dt, this);

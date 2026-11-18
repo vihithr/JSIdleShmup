@@ -55,9 +55,10 @@
           s.hits++;
           if (E.hp[eid] <= 0) {
             E.dead[eid] = 1;
-            game.score += E.score[eid];
+            const mult = p.y > SH.H * .78 ? 1 : 3;
+            game.score += E.score[eid] * mult;
             p.combo++;
-            game.popup(P.x[eid], P.y[eid], '+' + E.score[eid], '#fde68a');
+            game.popup(P.x[eid], P.y[eid], '+' + (E.score[eid] * mult), '#fde68a');
             game.burst(P.x[eid], P.y[eid], SH.rgbString(E, eid), E.boss[eid] ? 60 : 14);
             if (!E.boss[eid] && Math.random() < .14) game.spawnItem(P.x[eid], P.y[eid]);
           }
@@ -76,7 +77,7 @@
         }
         if (!B.grazed[id] && circles(P.x[id], P.y[id], CI.r[id], p.x, p.y, p.grazeR)) {
           B.grazed[id] = 1; p.graze++;
-          game.score += 5 + Math.min(50, p.combo);
+          game.score += 1;
           if (p.graze % 8 === 0) game.popup(p.x, p.y - 34, 'GRAZE x' + p.graze, '#fde68a');
           game.burst(P.x[id], P.y[id], '#fbbf24', 1);
           s.grazes++;

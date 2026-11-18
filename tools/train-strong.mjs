@@ -30,7 +30,9 @@ const SH = global.SH;
 /* Hitting anything is catastrophic: a single hit costs 8,000 points,
    roughly a tenth of a perfect 90-second run. Staying untouched pays 10,000. */
 function fitness(s) {
-  return s.score + s.graze * .5 - s.hits * 12000 - (3 - s.shield) * 1500 + (s.hits === 0 ? 15000 : 0);
+  const bottom = (s.bottom || 0) / seconds;
+  const bottomPenalty = bottom > .2 ? (bottom - .2) * 300000 : 0;
+  return s.score - s.hits * 20000 - bottomPenalty - (3 - s.shield) * 1000 + (s.hits === 0 ? 20000 : 0);
 }
 async function evaluate(kind, data) {
   const rs = [];
@@ -93,33 +95,48 @@ function mutate(src, sigma, sizes) {
   return j;
 }
 
+/* Simulated-annealing ES: accept worse candidates early with probability
+   exp(delta/T), cool T geometrically, and reheat on stagnation. */
 async function evolveTracked(kind, elite, label) {
-  let best = clone(elite);
-  let seedStat = await evaluate(kind, best);
-  let bestFit = fitness(seedStat);
-  console.log(`${label} seed fitness ${Math.round(bestFit)} (score ${seedStat.score}, hits ${seedStat.hits})`);
+  let current = clone(elite);
+  let currentFit = fitness(await evaluate(kind, current));
+  let best = clone(current), bestFit = currentFit;
+  console.log(`${label} seed fitness ${Math.round(bestFit)}`);
+  const T0 = 30000, Tend = 250;
+  let reheat = 1, stagnant = 0;
   const t0 = Date.now();
-  let stagnating = 0, boost = 1;
   for (let g = 0; g < gens; g++) {
-    const sigma = (.22 * (1 - g / gens) + .015) * boost;
-    const candidates = [clone(best)];
+    const progress = g / gens;
+    const T = T0 * Math.pow(Tend / T0, progress) * reheat;
+    const sigma = (.25 * (1 - progress) + .03) * reheat;
+    const candidates = [clone(current)];
     for (let k = 1; k < pop; k++) {
-      // 20% exploration with a much wider step to escape local optima.
-      candidates.push(mutate(best, k < pop * .2 ? sigma * 3 : sigma, kind));
+      const step = k < pop * .25 ? sigma * 3 : sigma;
+      const parent = k < pop * .15 ? best : current;
+      candidates.push(mutate(parent, step, kind));
     }
     const results = await Promise.all(candidates.map(data => evaluate(kind, data)));
-    let improved = false;
+    let genBest = null, genFit = -Infinity;
     results.forEach((r, i) => {
       if (r.error) return;
       const f = fitness(r);
-      if (f > bestFit) { bestFit = f; best = candidates[i]; improved = true; }
+      if (f > genFit) { genFit = f; genBest = candidates[i]; }
     });
-    stagnating = improved ? 0 : stagnating + 1;
-    if (stagnating > 20) { boost = Math.min(3, boost * 1.5); stagnating = 0; }
-    if (improved) boost = 1;
-    if (g % 10 === 0) console.log(`${label} gen ${g}: fitness ${Math.round(bestFit)} sigma ${sigma.toFixed(3)} boost ${boost}`);
+    if (genBest) {
+      const delta = genFit - currentFit;
+      const accept = delta >= 0 || Math.random() < Math.exp(delta / T);
+      if (accept) { current = genBest; currentFit = genFit; }
+      if (genFit > bestFit) { bestFit = genFit; best = genBest; stagnant = 0; }
+      else stagnant++;
+    }
+    if (stagnant > 25) {
+      reheat = Math.min(4, reheat * 1.8);
+      current = clone(best); currentFit = bestFit; stagnant = 0;
+      console.log(`${label} REHEAT at gen ${g}: T x${reheat.toFixed(1)}`);
+    }
+    if (g % 20 === 0) console.log(`${label} gen ${g}: best ${Math.round(bestFit)} cur ${Math.round(currentFit)} T ${Math.round(T)} sigma ${sigma.toFixed(3)}`);
   }
-  console.log(`${label} done in ${((Date.now() - t0) / 1000).toFixed(1)}s, fitness ${Math.round(bestFit)}`);
+  console.log(`${label} done in ${((Date.now() - t0) / 1000).toFixed(1)}s, best ${Math.round(bestFit)}`);
   return { best, bestFit };
 }
 

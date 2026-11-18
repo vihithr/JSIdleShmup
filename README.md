@@ -13,7 +13,7 @@ Language: [English](#english) | [中文](#中文)
 An **idle-first** bullet-hell: one trained pilot plays, you watch the collision engine work. Vanilla HTML5 Canvas, no build step, no runtime dependencies. Open `index.html` directly.
 
 ### One model: the ensemble pilot
-The pilot blends two learned networks (80% MLP / 20% brain.js). A tuning sweep over the blend weight found this ratio best for the harsh hit objective: ~32.7k score with 22.3 hits per 60 s, versus 23.7 hits for MLP-only and 25 for brain.js-only.
+The pilot blends two learned networks (20% MLP / 80% brain.js). Scoring now rewards **area suppression**: each kill is worth 3x its base score and clears nearby enemy bullets (a bullet-cancel), while grazing is only +1 — killing enemies simply leaves fewer shooters on screen. Camping at the bottom of the screen drains score. The training objective adds a large bottom-time penalty: `score - hits*12000 - bottomRatio*15000 - missingShield*1000 + 15000` for a flawless run.
 
 - `js/brain.js` — compact MLP (18 perception features → 24 tanh → 2 steering outputs), evolved by `tools/train.mjs` into `js/policy.js`.
 - `js/vendor/brain-browser.js` — vendored [brain.js](https://github.com/BrainJS/brain.js) v2 beta (MIT). Its network in `js/policy-brain.js` is seeded from the MLP weights (verified numerically identical) and evolved further by `tools/evolve-brain.mjs` — 250 generations total, fitness 8,227 → 24,085.
@@ -78,7 +78,7 @@ Game code: MIT — see [LICENSE](LICENSE). Vendored bitECS: MPL-2.0 (`js/vendor/
 一个**放置流**弹幕游戏：只有一个训练好的策略在玩，你主要负责看碰撞引擎工作。原生 HTML5 Canvas，无构建、无运行时依赖，直接打开 `index.html` 即可。
 
 ### 唯一模型：集成策略
-集成策略按 80% MLP / 20% brain.js 混合两个网络输出。混合权重扫描显示这个比例在严厉的中弹目标下最好：60 秒约 32.7k 分、22.3 次中弹，而纯 MLP 为 23.7 次、纯 brain.js 为 25 次。
+集成策略按 20% MLP / 80% brain.js 混合两个网络输出。计分改为奖励**压制版面**：击破得分 ×3 敌人少了自然就少发弹），擦弹只给 +1；缩在屏幕底部会持续扣分。训练目标也加入底部惩罚：`分数 - 中弹*12000 - 底部时间比例*15000 - 缺失护盾*1000 + 无伤奖励15000`。
 
 - `js/brain.js`：小型 MLP（18 特征 → 24 tanh → 2 输出），由 `tools/train.mjs` 进化得到 `js/policy.js`。
 - `js/vendor/brain-browser.js`：内置的 [brain.js](https://github.com/BrainJS/brain.js) v2 beta（MIT）。`js/policy-brain.js` 里的网络由 MLP 权重初始化（已验证输出完全一致），再用 `tools/evolve-brain.mjs` 继续进化 250 代，适应度 8,227 → 24,085。

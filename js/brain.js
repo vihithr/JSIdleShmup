@@ -6,7 +6,7 @@
 
   SH.Brain = class Brain {
     constructor(weights) {
-      this.IN = weights ? (weights.w1.length / (weights.b1.length || 1)) : 36;
+      this.IN = weights ? (weights.w1.length / (weights.b1.length || 1)) : 38;
       this.HID = weights ? weights.b1.length : 64;
       this.OUT = 2;
       this.w1 = new Float32Array(this.IN * this.HID);
@@ -47,7 +47,7 @@
       const world = game.world, C = world.components;
       const P = C.Position, B = C.Bullet, V = C.Velocity, E = C.Enemy;
       const p = C.Player[game.playerId];
-      const f = new Float32Array(36);
+      const f = new Float32Array(38);
       const sectors = new Float32Array(16);
       let worst = null, worstV = -Infinity, bullets = 0, boss = -1;
       for (const id of game.bulletIds) {
@@ -109,6 +109,9 @@
       f[33] = p.lastActionX || 0;
       f[34] = p.lastActionY || 0;
       f[35] = boss;
+      // Absolute position matters: the trainer heavily penalises bottom camping.
+      f[36] = SH.clamp((p.y - SH.H / 2) / (SH.H / 2), -1, 1);
+      f[37] = SH.clamp((p.x - SH.W / 2) / (SH.W / 2), -1, 1);
       return f;
     }
 

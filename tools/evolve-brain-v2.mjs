@@ -20,7 +20,7 @@ for (const f of ['js/vendor/bitecs.js','js/core.js','js/brain.js','js/policy.js'
   vm.runInThisContext(fs.readFileSync(path.join(root,f),'utf8'), {filename:f});
 const SH = global.SH;
 
-function fitness(s){ return s.score + s.graze*.5 - s.hits*12000 - (3-s.shield)*1500 + (s.hits===0?15000:0); }
+function fitness(s){ const bottom=(s.bottom||0)/seconds; const bp=bottom>.2?(bottom-.2)*300000:0; return s.score - s.hits*20000 - bp - (3-s.shield)*1000 + (s.hits===0?20000:0); }
 class Pool {
   constructor(n){ this.idle=[];this.queue=[];this.pending=new Map();this.next=1;
     for(let i=0;i<n;i++){ const w=new Worker(path.join(root,'tools/train-worker.mjs'));
@@ -47,14 +47,25 @@ best.layers=[{weights:[],biases:[]},{weights:Array.from({length:HID},()=>[]),bia
 for(let h=0;h<HID;h++){best.layers[1].weights[h]=[];for(let i=0;i<IN;i++)best.layers[1].weights[h][i]=w.w1[h*IN+i];best.layers[1].biases[h]=w.b1[h];}
 for(let k=0;k<2;k++){best.layers[2].weights[k]=[];for(let h=0;h<HID;h++)best.layers[2].weights[k][h]=w.w2[k*HID+h];best.layers[2].biases[k]=w.b2[k];}
 let bestFit=fitness(await evalCand(best));
+let current=clone(best), currentFit=bestFit;
+const T0=30000,Tend=250; let reheat=1,stagnant=0;
 console.log('seed', Math.round(bestFit), 'sizes', best.sizes);
 for(let g=0;g<gens;g++){
-  const sigma=.22*(1-g/gens)+.015;
-  const cands=[clone(best)];
-  for(let k=1;k<pop;k++)cands.push(mutate(best,k<pop*.2?sigma*3:sigma));
+  const progress=g/gens;
+  const T=T0*Math.pow(Tend/T0,progress)*reheat;
+  const sigma=(.25*(1-progress)+.03)*reheat;
+  const cands=[clone(current)];
+  for(let k=1;k<pop;k++){const step=k<pop*.25?sigma*3:sigma;const parent=k<pop*.15?best:current;cands.push(mutate(parent,step));}
   const rs=await Promise.all(cands.map(evalCand));
-  rs.forEach((r,i)=>{const f=fitness(r);if(f>bestFit){bestFit=f;best=cands[i];}});
-  if(g%10===0)console.log(`gen ${g}: ${Math.round(bestFit)} sigma ${sigma.toFixed(3)}`);
+  let genBest=null,genFit=-Infinity;
+  rs.forEach((r,i)=>{const f=fitness(r);if(f>genFit){genFit=f;genBest=cands[i];}});
+  if(genBest){
+    const delta=genFit-currentFit;
+    if(delta>=0||Math.random()<Math.exp(delta/T)){current=genBest;currentFit=genFit;}
+    if(genFit>bestFit){bestFit=genFit;best=genBest;stagnant=0;}else stagnant++;
+  }
+  if(stagnant>25){reheat=Math.min(4,reheat*1.8);current=clone(best);currentFit=bestFit;stagnant=0;console.log('REHEAT',g,reheat.toFixed(1));}
+  if(g%20===0)console.log(`gen ${g}: best ${Math.round(bestFit)} cur ${Math.round(currentFit)} T ${Math.round(T)}`);
 }
 fs.writeFileSync(path.join(root,'js/policy-brain.js'),`/* V2 brain.js net: ${gens}x${pop}x${seconds}s, hit penalty 12000. Fitness ${Math.round(bestFit)} */\nwindow.SH = window.SH || {};\nSH.BRAIN_NET_JSON = ${JSON.stringify(best)};\nSH.BRAIN_TANH = true;\n`);
 pool.close();

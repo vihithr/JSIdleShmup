@@ -50,7 +50,7 @@ parentPort.on('message', ({ id, kind, data, seconds }) => {
     const steps = Math.round(seconds / step);
     for (let i = 0; i < steps; i++) game.update(step);
     const p = game.player;
-    parentPort.postMessage({ id, score: game.score, graze: p.graze, hits: game.hits, shield: p.shield });
+    parentPort.postMessage({ id, score: game.score, graze: p.graze, hits: game.hits, shield: p.shield, bottom: game.bottomTime });
   } catch (e) {
     parentPort.postMessage({ id, error: String(e) + '\n' + e.stack });
   }
