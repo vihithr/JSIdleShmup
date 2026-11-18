@@ -43,11 +43,11 @@
       C.Player[this.playerId] = {
         x: W / 2, y: H - 70, vx: 0, vy: 0, r: 4, size: 16, grazeR: 30,
         shield: 3, maxShield: 3, invuln: 0, dash: 0, dashCd: 0,
-        fireTimer: 0, power: 2, combo: 0, graze: 0, lastHit: 0,
+        fireTimer: 0, power: 2, combo: 0, graze: 0, lastHit: 0, lastActionX: 0, lastActionY: 0,
         autoX: W / 2, autoY: H - 70, sprite: null
       };
       C.Position.x[this.playerId] = W / 2; C.Position.y[this.playerId] = H - 70;
-      this.score = 0; this.elapsed = 0;
+      this.score = 0; this.elapsed = 0; this.hits = 0;
       this.director.start(0);
       this.bg.setStage(0);
     }
@@ -105,6 +105,7 @@
       C.Render.kind[id] = K.item;
     }
     burst(x, y, color, count) {
+      if (SH.HEADLESS) return;
       const c = SH.hexRGB(color);
       const C = this.world.components;
       for (let i = 0; i < count; i++) {
@@ -122,6 +123,7 @@
       }
     }
     popup(x, y, text, color) {
+      if (SH.HEADLESS) return;
       const c = SH.hexRGB(color), C = this.world.components;
       const id = bitECS.addEntity(this.world);
       this.addPos(id, x, y);
@@ -139,7 +141,7 @@
     hitPlayer() {
       const p = this.player;
       if (p.invuln > 0) return false;
-      p.shield--; p.combo = 0; p.invuln = 1.6; p.lastHit = 0;
+      p.shield--; p.combo = 0; p.invuln = 1.6; p.lastHit = 0; this.hits++;
       this.burst(p.x, p.y, '#f87171', 26);
       this.popup(p.x, p.y - 28, 'HIT!', '#f87171');
       if (p.shield <= 0) { p.shield = p.maxShield; this.popup(p.x, p.y - 50, 'RESPAWN', '#fbbf24'); }
@@ -200,8 +202,9 @@
                               : this.brainNet.run(Array.from(f, v => (v + 1) / 2));
       let ax = SH.clamp(o[0], -1, 1), ay = SH.clamp(o[1], -1, 1);
       const m = this.brain.forward(f);
-      ax = SH.clamp(ax * .5 + m[0] * .5, -1, 1);
-      ay = SH.clamp(ay * .5 + m[1] * .5, -1, 1);
+      ax = SH.clamp(ax * .2 + m[0] * .8, -1, 1);
+      ay = SH.clamp(ay * .2 + m[1] * .8, -1, 1);
+      p.lastActionX = ax; p.lastActionY = ay;
       return { x: p.x + ax * 95, y: p.y + ay * 95 };
     }
 
@@ -258,7 +261,7 @@
     update(dt) {
       if (this.paused) return;
       this.elapsed += dt;
-      this.bg.update(dt);
+      if (!SH.HEADLESS) this.bg.update(dt);
       this.updatePlayer(dt);
       this.director.update(dt, this);
       SH.movementSystem(this.world, dt);

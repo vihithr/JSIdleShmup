@@ -5,6 +5,7 @@
   SH.W = 800;
   SH.H = 600;
   SH.TAU = Math.PI * 2;
+  SH.HEADLESS = false;   // training mode: skip visual-only work
 
   SH.clamp = (v, a, b) => v < a ? a : v > b ? b : v;
   SH.lerp = (a, b, t) => a + (b - a) * t;

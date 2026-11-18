@@ -12,13 +12,13 @@
       B.life[id] -= dt;
       if (B.life[id] <= 0 || P.x[id] < -30 || P.x[id] > W + 30 || P.y[id] < -30 || P.y[id] > H + 30) B.dead[id] = 1;
     }
-    for (const id of bitECS.query(world, [PA])) {
+    if (!SH.HEADLESS) for (const id of bitECS.query(world, [PA])) {
       PA.life[id] -= dt;
       if (PA.life[id] <= 0) continue;
       P.x[id] += V.x[id] * dt; P.y[id] += V.y[id] * dt;
       V.x[id] *= .97; V.y[id] *= .97;
     }
-    for (const id of bitECS.query(world, [PO])) {
+    if (!SH.HEADLESS) for (const id of bitECS.query(world, [PO])) {
       PO.life[id] -= dt;
       P.y[id] -= 26 * dt;
     }

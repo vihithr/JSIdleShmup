@@ -13,14 +13,14 @@ Language: [English](#english) | [中文](#中文)
 An **idle-first** bullet-hell: one trained pilot plays, you watch the collision engine work. Vanilla HTML5 Canvas, no build step, no runtime dependencies. Open `index.html` directly.
 
 ### One model: the ensemble pilot
-The pilot averages two learned networks, which beat every single network in a headless bake-off (4 x 30 s trials: ensemble **20,966** avg, brain.js-only 20,362, MLP-only 17,438, hand-written baseline 8,326):
+The pilot blends two learned networks (80% MLP / 20% brain.js). A tuning sweep over the blend weight found this ratio best for the harsh hit objective: ~32.7k score with 22.3 hits per 60 s, versus 23.7 hits for MLP-only and 25 for brain.js-only.
 
 - `js/brain.js` — compact MLP (18 perception features → 24 tanh → 2 steering outputs), evolved by `tools/train.mjs` into `js/policy.js`.
 - `js/vendor/brain-browser.js` — vendored [brain.js](https://github.com/BrainJS/brain.js) v2 beta (MIT). Its network in `js/policy-brain.js` is seeded from the MLP weights (verified numerically identical) and evolved further by `tools/evolve-brain.mjs` — 250 generations total, fitness 8,227 → 24,085.
 
-Both outputs are averaged every frame; there is only one policy to choose from.
+Both outputs are blended every frame; there is only one policy to choose from.
 
-Retrain: `node tools/train.mjs [generations] [population] [seconds]`, then `node tools/evolve-brain.mjs [generations] [population] [seconds] [resume]`.
+Retrain (parallel, CPU): `node tools/train-strong.mjs [generations] [population] [seconds] [workers]`. The trainer spawns a worker pool across CPU cores, runs 90-second episodes with visual work disabled (`SH.HEADLESS`), and uses a harsh objective: `score + graze*2 - hits*8000 - missingShield*2000 + 10000` for a flawless run. A single hit wipes out most of a run's score, so avoiding damage dominates.
 
 ### The collision lab
 - **ECS**: built on [bitECS](https://github.com/NateTheGreatt/bitECS) v0.4.0 (MPL-2.0, vendored). Components are preallocated typed arrays; systems are `query`-driven.
@@ -60,7 +60,9 @@ Press `V` for collisions, `B` to compare broadphases.
 - `js/systems.js` — movement and enemy systems.
 - `js/stages.js` — stage scripts, formations, wave director.
 - `js/game.js` — orchestration, ensemble pilot, HUD.
-- `tools/train.mjs` — MLP evolution. `tools/evolve-brain.mjs` — brain.js evolution.
+- `tools/imitate.mjs` — behaviour cloning from a predictive planner (24k demos).
+- `tools/train-strong.mjs` + `train-worker.mjs` — parallel, hit-penalised evolution of both networks.
+- `tools/evolve-brain-v2.mjs` — brain.js-only evolution seeded from the MLP weights.
 
 ### License
 Game code: MIT — see [LICENSE](LICENSE). Vendored bitECS: MPL-2.0 (`js/vendor/BITECS-LICENSE`). Vendored brain.js: MIT (`js/vendor/BRAIN-LICENSE`).
@@ -76,14 +78,14 @@ Game code: MIT — see [LICENSE](LICENSE). Vendored bitECS: MPL-2.0 (`js/vendor/
 一个**放置流**弹幕游戏：只有一个训练好的策略在玩，你主要负责看碰撞引擎工作。原生 HTML5 Canvas，无构建、无运行时依赖，直接打开 `index.html` 即可。
 
 ### 唯一模型：集成策略
-集成策略把两个网络输出取平均，在无头对比中（4 次 × 30 秒）胜过任何单模型：集成 **20,966** 分，brain.js 单模型 20,362，MLP 单模型 17,438，手写基线 8,326。
+集成策略按 80% MLP / 20% brain.js 混合两个网络输出。混合权重扫描显示这个比例在严厉的中弹目标下最好：60 秒约 32.7k 分、22.3 次中弹，而纯 MLP 为 23.7 次、纯 brain.js 为 25 次。
 
 - `js/brain.js`：小型 MLP（18 特征 → 24 tanh → 2 输出），由 `tools/train.mjs` 进化得到 `js/policy.js`。
 - `js/vendor/brain-browser.js`：内置的 [brain.js](https://github.com/BrainJS/brain.js) v2 beta（MIT）。`js/policy-brain.js` 里的网络由 MLP 权重初始化（已验证输出完全一致），再用 `tools/evolve-brain.mjs` 继续进化 250 代，适应度 8,227 → 24,085。
 
-每帧只算这两个网络并取平均，没有其他可选策略。
+每帧只算这两个网络并按上述比例混合，没有其他可选策略。
 
-重新训练：`node tools/train.mjs [代数] [种群] [秒数]`，然后 `node tools/evolve-brain.mjs [代数] [种群] [秒数] [resume]`。
+重新训练（CPU 并行）：`node tools/train-strong.mjs [代数] [种群] [秒数] [worker数]`。训练器在多个 CPU 核心上开 worker 池，跑 90 秒回合并关闭纯视觉计算（`SH.HEADLESS`）；目标函数非常严厉：`分数 + 擦弹*2 - 中弹*8000 - 缺失护盾*2000 + 无伤奖励10000`，一次中弹会抹掉大部分得分，因此避伤是首要目标。
 
 ### 碰撞实验室
 - **ECS**：基于 [bitECS](https://github.com/NateTheGreatt/bitECS) v0.4.0（MPL-2.0，已内置）。组件为预分配类型化数组，系统由 `query` 驱动。
