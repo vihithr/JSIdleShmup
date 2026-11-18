@@ -20,6 +20,8 @@ JS Idle Shmup is a browser-based bullet-hell / idle hybrid built with vanilla HT
 - Image upload to customize player and enemy sprites (PNG).
 - On-screen stats: enemies downed, player hits, power-ups collected.
 - Responsive dark UI with a compact HUD, pause overlay and touch support.
+- Five procedurally drawn parallax stages (Void / Aqua / City / Shrine / Iron Shaft) with scrolling stars, nebulae, silhouettes and particles. Stages advance automatically every 30 seconds or via the **Next stage** button / `S` key.
+- Optional custom scrolling background: load your own PNG/JPEG/WebP from the options panel and it tiles behind the action. No game assets are bundled.
 
 ### Quick Start
 1. Clone or download this repo.  
@@ -67,6 +69,8 @@ JS Idle Shmup 是一个基于浏览器的弹幕放置混合小游戏，使用原
 - 支持上传 PNG 自定义玩家和敌人贴图。
 - 屏显统计：击落数、被击次数、道具获取数。
 - 自适应深色界面，带紧凑 HUD、暂停遮罩与触屏支持。
+- 五个程序化绘制的视差关卡（虚空 / 深海 / 霓虹都市 / 遗迹 / 机械井），含滚动星空、星云、剪影与粒子；每 30 秒自动切换，也可点击 **Next stage** 或按 `S` 手动切换。
+- 可选自定义滚动背景：在选项面板载入自己的 PNG/JPEG/WebP，图片会平铺滚动；仓库不包含任何游戏素材。
 
 ### 快速开始
 1. 克隆或下载本仓库。  
