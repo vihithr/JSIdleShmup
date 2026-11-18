@@ -211,6 +211,7 @@
         <footer>Open source by <a href="https://github.com/vihithr/JSIdleShmup">vihithr</a> · MIT</footer>
     </main>
     <script src="js/vendor/bitecs.js"></script>
+    <script src="js/vendor/brain-browser.js"></script>
     <script src="js/core.js"></script>
     <script src="js/ecs-world.js"></script>
     <script src="js/brain.js"></script>
@@ -221,12 +222,14 @@
     <script src="js/systems.js"></script>
     <script src="js/stages.js"></script>
     <script src="js/policy.js"></script>
+    <script src="js/policy-brain.js"></script>
     <script src="js/game.js"></script>
     <script>
     (function () {
       var canvas = document.getElementById('gameCanvas');
       var game = new SH.Game(canvas);
       window.game = game;
+      document.getElementById('aiButton').textContent = 'AI: ' + game.aiMode.toUpperCase();
 
       function upload(id, cb) {
         document.getElementById(id).addEventListener('change', function (e) {

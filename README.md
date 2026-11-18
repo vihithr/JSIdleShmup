@@ -14,8 +14,8 @@ An **idle-first** bullet-hell: the AI plays, you watch the collision engine and 
 
 ### Architecture: bitECS + evolved neural pilot
 - **ECS**: built on the mature [bitECS](https://github.com/NateTheGreatt/bitECS) v0.4.0 (MPL-2.0, vendored in `js/vendor/` with its license). Entities are IDs, components are preallocated typed arrays (`Position`, `Velocity`, `Circle`, `Bullet`, `Enemy`, `Particle`, `Popup`, `Item`, `Player`, `Render`), and systems are `query`-driven loops (`movementSystem`, `enemySystem`, `renderSystem`).
-- **Learned policy**: `js/brain.js` is a small MLP (18 perception features → 24 tanh hidden → 2 steering outputs). Its weights are evolved offline by `tools/train.mjs` using an elitist evolution strategy over ~3,000 simulated runs, then baked into `js/policy.js`. The AI defaults to `NEURAL`; press `G` to compare against the hand-written `GRAZE` / `EVADE` / `HUNT` baselines.
-- In a 25-second headless comparison the learned policy scored **~16k** with 239 grazes, versus ~6k for the best baseline.
+- **Learned policies**: two trained pilots run side by side. `js/brain.js` is a compact MLP (18 features → 24 tanh → 2 steering outputs) evolved offline by `tools/train.mjs` (~3,000 simulated runs) into `js/policy.js`. On top of it, the mature [brain.js](https://github.com/BrainJS/brain.js) library (vendored, MIT, `js/vendor/brain-browser.js`) runs a **distilled + further evolved** network from `js/policy-brain.js` (`tools/distill.mjs` + `tools/evolve-brain.mjs`). The default is `ENSEMBLE`, which averages both policies; press `G` to compare `BRAIN`, `NEURAL`, and the hand-written `GRAZE` / `EVADE` / `HUNT` baselines.
+- Headless 25-second comparison: ensemble **17.6k**, neural 17.4k, brain-only 16.3k, best hand-written baseline ~7.4k.
 
 ### The collision lab
 - **Broadphase** — uniform spatial grid over enemy AABBs, generation-stamped de-duplication. Press `B` to switch `HASH` / `BRUTE` live; the HUD shows cull percentage (typically 98%+).
@@ -45,7 +45,9 @@ Press `V` for collisions, `B` to compare broadphases, `G` to compare pilots.
 - `js/ecs-world.js` — component/typed-array definitions.
 - `js/core.js` — math, PRNG, spatial hash, input, fixed-step loop.
 - `js/brain.js` — MLP perception and forward pass.
-- `js/policy.js` — evolved weights (generated).
+- `js/policy.js` — evolved MLP weights (generated).
+- `js/policy-brain.js` — distilled + evolved brain.js weights (generated).
+- `js/vendor/brain-browser.js` — vendored brain.js v2 beta (MIT).
 - `js/background.js` — parallax themes and renderer.
 - `js/entities.js` — bitECS render system.
 - `js/collision.js` — broadphase, CCD, graze, debug rendering.
@@ -53,7 +55,7 @@ Press `V` for collisions, `B` to compare broadphases, `G` to compare pilots.
 - `js/systems.js` — movement and enemy systems.
 - `js/stages.js` — stage scripts, formations, wave director.
 - `js/game.js` — orchestration, pilot, HUD.
-- `tools/train.mjs` — offline policy evolution: `node tools/train.mjs [generations] [population] [seconds]`.
+- `tools/train.mjs` — MLP evolution; `tools/distill.mjs` — imitation distillation; `tools/evolve-brain.mjs` — brain.js weight evolution (supports `resume`).
 
 ### License
 Game code: MIT — see [LICENSE](LICENSE). Vendored bitECS: MPL-2.0 — see `js/vendor/BITECS-LICENSE`.
@@ -70,8 +72,8 @@ Game code: MIT — see [LICENSE](LICENSE). Vendored bitECS: MPL-2.0 — see `js/
 
 ### 架构：bitECS + 训练出来的神经策略
 - **ECS**：基于成熟的 [bitECS](https://github.com/NateTheGreatt/bitECS) v0.4.0（MPL-2.0，已随仓库附带并保留许可证）。实体是 ID，组件是预分配的类型化数组（Position / Velocity / Circle / Bullet / Enemy / Particle / Popup / Item / Player / Render），系统通过 `query` 驱动（`movementSystem`、`enemySystem`、渲染系统）。
-- **学习策略**：`js/brain.js` 是一个小型 MLP（18 个感知特征 → 24 个 tanh 隐节点 → 2 个转向输出）。权重由 `tools/train.mjs` 用精英保留的进化策略在约 3000 次模拟中训练，写入 `js/policy.js`。默认 AI 为 `NEURAL`，按 `G` 可与手写的 `GRAZE` / `EVADE` / `HUNT` 基线对比。
-- 25 秒无头对比中，训练策略约 **16k** 分、239 次擦弹，最强基线约 6k 分。
+- **学习策略**：两套训练好的策略并行运行。`js/brain.js` 是小型 MLP（18 特征 → 24 tanh → 2 输出），由 `tools/train.mjs` 在约 3000 次模拟中进化得到权重 (`js/policy.js`)；在此基础上，用成熟的 [brain.js](https://github.com/BrainJS/brain.js) 库（内置，MIT，`js/vendor/brain-browser.js`）运行一个**蒸馏 + 继续进化**的网络 (`js/policy-brain.js`，工具 `tools/distill.mjs` 与 `tools/evolve-brain.mjs`)。默认是 `ENSEMBLE`（两者取平均），按 `G` 可对比 `BRAIN`、`NEURAL` 和手写基线 `GRAZE` / `EVADE` / `HUNT`。
+- 25 秒无头对比：集成约 **17.6k** 分，neural 17.4k，brain 16.3k，最强手写基线约 7.4k。
 
 ### 碰撞实验室
 - **宽相**：敌人 AABB 均匀网格 + 世代标记去重。按 `B` 实时切换 `HASH` / `BRUTE`，HUD 显示剔除率（通常 98%+）。

@@ -15,7 +15,12 @@
       this.bg = new SH.Background();
       this.director = new SH.Director();
       this.brain = new SH.Brain(SH.POLICY_WEIGHTS);
-      this.aiMode = SH.POLICY_WEIGHTS ? 'neural' : 'graze';
+      this.brainNet = null;
+      if (SH.BRAIN_NET_JSON && window.brain) {
+        this.brainNet = new brain.NeuralNetwork();
+        this.brainNet.fromJSON(SH.BRAIN_NET_JSON);
+      }
+      this.aiMode = this.brainNet ? 'ensemble' : SH.POLICY_WEIGHTS ? 'neural' : 'graze';
       this.assist = true;
       this.playerId = bitECS.addEntity(this.world);
       bitECS.addComponent(this.world, this.playerId, this.world.components.Player);
@@ -156,7 +161,7 @@
       const ov = document.getElementById('pauseOverlay'); if (ov) ov.hidden = !this.paused;
     }
     cycleAI() {
-      const modes = SH.POLICY_WEIGHTS ? ['neural', 'graze', 'evade', 'hunt'] : ['graze', 'evade', 'hunt'];
+      const modes = this.brainNet ? ['ensemble', 'brain', 'neural', 'graze', 'evade', 'hunt'] : SH.POLICY_WEIGHTS ? ['neural', 'graze', 'evade', 'hunt'] : ['graze', 'evade', 'hunt'];
       this.aiMode = modes[(modes.indexOf(this.aiMode) + 1) % modes.length];
       const b = document.getElementById('aiButton'); if (b) b.textContent = 'AI: ' + this.aiMode.toUpperCase();
       return this.aiMode;
@@ -196,6 +201,19 @@
 
     autopilot() {
       const p = this.player;
+      if ((this.aiMode === 'brain' || this.aiMode === 'ensemble') && this.brainNet) {
+        const f = this.brain.features(this);
+        const o = SH.BRAIN_TANH ? this.brainNet.run(Array.from(f))
+                                : this.brainNet.run(Array.from(f, v => (v + 1) / 2));
+        let ax = SH.BRAIN_TANH ? SH.clamp(o[0], -1, 1) : SH.clamp(o[0] * 2 - 1, -1, 1);
+        let ay = SH.BRAIN_TANH ? SH.clamp(o[1], -1, 1) : SH.clamp(o[1] * 2 - 1, -1, 1);
+        if (this.aiMode === 'ensemble') {
+          const m = this.brain.forward(f);
+          ax = SH.clamp(ax * .5 + m[0] * .5, -1, 1);
+          ay = SH.clamp(ay * .5 + m[1] * .5, -1, 1);
+        }
+        return { x: p.x + ax * 95, y: p.y + ay * 95 };
+      }
       if (this.aiMode === 'neural') {
         const out = this.brain.forward(this.brain.features(this));
         return { x: p.x + out[0] * 95, y: p.y + out[1] * 95 };
@@ -230,11 +248,21 @@
     assistedTarget(tx, ty) {
       if (!this.assist) return { x: tx, y: ty };
       const p = this.player;
-      const out = this.brain.forward(this.brain.features(this));
+      let ax, ay;
+      if (this.brainNet) {
+        const f = this.brain.features(this);
+        const o = SH.BRAIN_TANH ? this.brainNet.run(Array.from(f))
+                                : this.brainNet.run(Array.from(f, v => (v + 1) / 2));
+        ax = SH.BRAIN_TANH ? SH.clamp(o[0], -1, 1) : SH.clamp(o[0] * 2 - 1, -1, 1);
+        ay = SH.BRAIN_TANH ? SH.clamp(o[1], -1, 1) : SH.clamp(o[1] * 2 - 1, -1, 1);
+      } else {
+        const o = this.brain.forward(this.brain.features(this));
+        ax = o[0]; ay = o[1];
+      }
       const k = Math.min(1, this.threatAt(p.x, p.y, 0) / 12);
       return {
-        x: SH.clamp(tx + out[0] * 70 * k, 24, W - 24),
-        y: SH.clamp(ty + out[1] * 70 * k, H / 2, H - 24)
+        x: SH.clamp(tx + ax * 70 * k, 24, W - 24),
+        y: SH.clamp(ty + ay * 70 * k, H / 2, H - 24)
       };
     }
 
