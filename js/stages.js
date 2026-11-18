@@ -64,12 +64,30 @@
       this.wave = 0;
       this.bossSpawned = false;
       this.cleared = false;
+      this.ambient = 0;
       this.rng = SH.rng(9137 + this.stage * 7919);
     }
 
     update(dt, game) {
       if (this.cleared) return;
       this.elapsed += dt;
+
+      // Continuous ambient stream: scripted waves are the highlights, but an
+      // idle game needs an endless supply of targets and bullet patterns.
+      this.ambient -= dt;
+      if (this.ambient <= 0 && game.enemies.length < 60) {
+        this.ambient = Math.max(.16, .55 - this.stage * .07);
+        const pool = this.stage === 0 ? ['drifter', 'drifter', 'weaver', 'bomber']
+          : this.stage === 1 ? ['drifter', 'weaver', 'orbiter', 'sniper', 'bomber']
+          : this.stage === 2 ? ['weaver', 'orbiter', 'spinner', 'sniper', 'bomber', 'tank']
+          : ['weaver', 'orbiter', 'spinner', 'sniper', 'bomber', 'tank', 'drifter'];
+        const count = 3 + Math.floor(this.stage) + (this.rng() < .4 ? 1 : 0);
+        for (let i = 0; i < count; i++) {
+          const type = pool[(this.rng() * pool.length) | 0];
+          game.spawn(type, 60 + this.rng() * (SH.W - 120), -30 - i * 40);
+        }
+      }
+
       const s = this.script;
       while (this.wave < s.waves.length && s.waves[this.wave].t <= this.elapsed) {
         const w = s.waves[this.wave++];

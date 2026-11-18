@@ -86,59 +86,63 @@
       document.getElementById('pauseOverlay').hidden = !this.paused;
     }
 
-    /* --- Idle AI: potential-field steering. This is the primary player. ---
-       Three strategies trade score against survival:
-         graze — hold near the graze ring to farm combo
-         evade — stronger repulsion, maximum safety
-         hunt  — chase enemies, ignore minor threats                    */
+    /* --- Idle AI is the primary player -------------------------------------
+       Predictive threat sampling: for each candidate position we compute the
+       closest approach of every enemy bullet over the next 0.55 s, then pick
+       the safest direction with local search. Grazing is rewarded so the AI
+       deliberately hugs the danger zone instead of running away.          */
+    threatAt(x, y, grazeBonus) {
+      let s = 0;
+      for (const b of this.bullets.used) {
+        if (b.friendly) continue;
+        const vx = b.vx, vy = b.vy, l2 = vx * vx + vy * vy;
+        let t = l2 ? ((x - b.x) * vx + (y - b.y) * vy) / l2 : 0;
+        t = t < 0 ? 0 : t > .55 ? .55 : t;
+        const px = b.x + vx * t, py = b.y + vy * t;
+        const dx = x - px, dy = y - py, d2 = dx * dx + dy * dy;
+        if (d2 < 150 * 150) {
+          const d = Math.sqrt(d2);
+          s += (150 - d) / (d + 12);
+          if (grazeBonus && d2 < 34 * 34) s -= grazeBonus;
+        }
+      }
+      return s;
+    }
+
     autopilot(dt) {
       const p = this.player;
       const mode = this.aiMode;
-      const danger = mode === 'evade' ? 130 : mode === 'hunt' ? 52 : 92;
-      const strength = mode === 'evade' ? 520 : mode === 'hunt' ? 190 : 330;
-      let ax = 0, ay = 0;
-
-      for (const b of this.bullets.used) {
-        if (b.friendly) continue;
-        const dx = b.x - p.x, dy = b.y - p.y, d = Math.hypot(dx, dy);
-        if (d > danger || d < .01) continue;
-        // Inverse-square-like repulsion, stronger the closer the bullet gets.
-        const f = Math.pow(1 - d / danger, 2) * strength;
-        ax -= dx / d * f; ay -= dy / d * f;
-        if (mode === 'graze' && d > p.r + b.r + 8 && d < p.grazeR) {
-          // Hold just outside the hitbox: grazing scores without risking a hit.
-          ax += dx / d * f * .45; ay += dy / d * f * .45;
-        }
-      }
+      const sampleR = mode === 'evade' ? 40 : mode === 'graze' ? 28 : 18;
+      const threatW = mode === 'evade' ? 1.5 : mode === 'graze' ? 1.0 : .65;
+      const grazeW = mode === 'graze' ? .5 : .08;
+      const chaseW = mode === 'hunt' ? 1 : mode === 'graze' ? .45 : .25;
 
       let target = null, best = Infinity;
       for (const e of this.enemies) {
         const d = Math.hypot(e.x - p.x, e.y - p.y);
         if (d < best) { best = d; target = e; }
       }
-      const hunt = mode === 'hunt' ? 2.1 : mode === 'graze' ? 1.35 : .7;
-      if (target) {
-        ax += SH.clamp((target.x - p.x) * hunt, -120, 120);
-        ay += SH.clamp((target.y - p.y) * hunt * .35, -45, 45);
+      const panic = this.threatAt(p.x, p.y, 0) > 14 ? 1.5 : 1;
+      let bestScore = Infinity, bx = p.x, by = p.y;
+      for (let i = -1; i < 16; i++) {
+        const a = i / 16 * SH.TAU;
+        const x = i < 0 ? p.x : SH.clamp(p.x + Math.cos(a) * sampleR * panic, 24, SH.W - 24);
+        const y = i < 0 ? p.y : SH.clamp(p.y + Math.sin(a) * sampleR * panic, SH.H / 2, SH.H - 24);
+        let score = this.threatAt(x, y, grazeW) * threatW;
+        if (target) score -= (220 - Math.min(220, Math.hypot(target.x - x, target.y - y))) * .012 * chaseW;
+        for (const it of this.items) {
+          const d = Math.hypot(it.x - x, it.y - y);
+          if (d < 160) score -= (160 - d) * .02;
+        }
+        score += Math.abs(SH.W / 2 - x) * .0006 + Math.abs(SH.H * .72 - y) * .0012;
+        if (score < bestScore) { bestScore = score; bx = x; by = y; }
       }
-      for (const it of this.items) {
-        const dx = it.x - p.x, dy = it.y - p.y, d = Math.hypot(dx, dy);
-        if (d < 190) { ax += dx / d * 130; ay += dy / d * 130; }
-      }
-      // Keep away from the screen edges and the bullet-spawning ceiling.
-      ax += (W / 2 - p.x) * .22;
-      ay += (H * .72 - p.y) * .28;
-      ax += Math.sin(this.elapsed * .9) * 18;
-
       if (!this.input.pointer.down && !this.input.axis.x && !this.input.axis.y) {
-        const nx = SH.clamp(p.x + ax * dt, 24, W - 24);
-        const ny = SH.clamp(p.y + ay * dt, H / 2, H - 24);
-        p.autoX = SH.lerp(p.autoX, nx, .16);
-        p.autoY = SH.lerp(p.autoY, ny, .16);
+        p.autoX = SH.lerp(p.autoX, bx, .6);
+        p.autoY = SH.lerp(p.autoY, by, .6);
       }
       return target;
     }
-
     update(dt) {
       if (this.paused) return;
       this.elapsed += dt;
@@ -161,7 +165,7 @@
         const it = this.items[i];
         it.y += 90 * dt;
         if (Math.hypot(it.x - this.player.x, it.y - this.player.y) < 22) {
-          this.player.power = Math.min(6, this.player.power + 1);
+          this.player.power = Math.min(8, this.player.power + 1);
           this.popup(it.x, it.y, 'POWER UP', '#a3e635');
           this.items.splice(i, 1);
         } else if (it.y > H + 20) this.items.splice(i, 1);
@@ -194,6 +198,7 @@
       set('shieldValue', this.player.shield + '/' + this.player.maxShield);
       set('grazeValue', this.player.graze);
       set('cullValue', this.collision.stats.culled + '%');
+      set('bulletValue', this.bullets.used.reduce((n, b) => n + (b.friendly ? 0 : 1), 0));
     }
   };
 

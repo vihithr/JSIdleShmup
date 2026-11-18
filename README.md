@@ -21,7 +21,7 @@ The simulation exists mainly to exercise and visualise its collision code:
 - **Debug view** — press `V` to draw the grid cells, enemy AABBs, swept segments, candidate links, the graze ring and live counters (pairs / candidates / cull % / narrow checks / hits / grazes).
 
 ### Idle AI strategies
-The autopilot is the primary player. It uses a potential field: inverse-square repulsion from bullets, attraction toward enemies and power-ups, edge avoidance and mild wander to break deadlocks. Press `G` or click **AI** to cycle:
+The autopilot is the primary player. It uses **predictive threat sampling**: for 17 candidate positions it computes each bullet's closest approach over the next 0.55 s, then picks the safest direction with local search (plus enemy/item attraction and edge avoidance). Press `G` or click **AI** to cycle:
 
 - **GRAZE** (default) — holds near the graze ring, maximising score.
 - **EVADE** — larger danger radius and stronger repulsion, maximising survival.
@@ -31,6 +31,7 @@ Manual input (mouse / touch / WASD) takes over instantly and the AI resumes when
 
 ### Enemies and stages
 - 8 enemy archetypes — drifter, weaver, orbiter, sniper, spinner, tank, bomber and boss — each with distinct movement and bullet patterns (aimed, spread, ring, spiral, delayed mines). Bosses switch attacks by HP phase.
+- Dense, continuous bullet hell: scripted waves are reinforced by an ambient spawner (up to ~60 enemies), with global density/rate knobs. Peaks at 300+ enemy bullets on screen. The HUD shows the live bullet count.
 - 5 data-driven stages with timed waves, four formations, scaling HP/counts, a boss per stage and a clear bonus. Five procedural parallax backdrops: Void / Aqua / Neon City / Shrine / Iron Shaft.
 
 ### Quick Start
@@ -79,7 +80,7 @@ MIT — see [LICENSE](LICENSE).
 - **调试视图**：按 `V` 画出网格、敌人 AABB、子弹扫掠线段、候选连线、擦弹环，以及实时计数（对数 / 候选 / 剔除率 / 窄相次数 / 命中 / 擦弹）。
 
 ### 托管 AI 策略
-自动驾驶才是主角。它使用势场算法：子弹的平方反比斥力、敌人与道具的吸引力、边界回避，以及少量随机游走避免卡死。按 `G` 或点击 **AI** 切换：
+自动驾驶才是主角。它使用**预测式威胁采样**：对 17 个候选位置分别计算每颗子弹未来 0.55 秒内的最近接近距离，再用局部搜索选最安全的方向（同时考虑敌人/道具吸引与边界回避）。按 `G` 或点击 **AI** 切换：
 
 - **GRAZE**（默认）：贴着擦弹环飞，分数最高。
 - **EVADE**：更大的危险半径与斥力，生存优先。
@@ -89,6 +90,7 @@ MIT — see [LICENSE](LICENSE).
 
 ### 敌人与关卡
 - 8 种敌人：漂移、织动、环绕、狙击、旋转、重装、投雷、Boss，各有独立移动与弹幕（瞄准、散射、环形、螺旋、延时地雷），Boss 按血量切招。
+- 高密度持续弹幕：脚本波次之外还有环境刷怪（同屏最多约 60 敌），密度与射速由全局系数调节，峰值可达 300+ 敌弹；HUD 显示实时弹数。
 - 5 个数据驱动关卡，定时波次 + 四种编队，血量与数量递增，每关 Boss 与通关奖励；5 套程序化视差背景：虚空 / 深海 / 霓虹都市 / 遗迹 / 机械井。
 
 ### 快速开始

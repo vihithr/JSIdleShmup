@@ -140,7 +140,7 @@
       this.r = 4; this.size = 16; this.grazeR = 30;
       this.shield = 3; this.maxShield = 3;
       this.invuln = 0; this.dash = 0; this.dashCd = 0;
-      this.fireTimer = 0; this.power = 1; this.combo = 0; this.graze = 0;
+      this.fireTimer = 0; this.power = 2; this.combo = 0; this.graze = 0;
       this.lastHit = 0; this.autoX = W / 2; this.autoY = H - 70;
     }
     update(dt, input, game) {
@@ -172,7 +172,7 @@
 
       this.fireTimer -= dt;
       if (this.fireTimer <= 0) {
-        this.fireTimer = focus ? .085 : .065;
+        this.fireTimer = focus ? .07 : .05;
         const n = focus ? Math.max(2, this.power - 1) : this.power;
         const spread = focus ? .10 : .22;
         for (let i = 0; i < n; i++) {
