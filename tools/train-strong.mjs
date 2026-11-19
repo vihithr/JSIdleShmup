@@ -15,6 +15,7 @@ const pop = Number(process.argv[3] || 24);
 const seconds = Number(process.argv[4] || 90);
 const workers = Number(process.argv[5] || Math.max(2, os.cpus().length - 4));
 const trials = Number(process.argv[6] || 1);
+const HIT_PENALTY = Number(process.env.HIT_PENALTY || 20000);
 
 global.window = globalThis;
 global.self = globalThis;
@@ -32,7 +33,7 @@ const SH = global.SH;
 function fitness(s) {
   const bottom = (s.bottom || 0) / seconds;
   const bottomPenalty = bottom > .2 ? (bottom - .2) * 300000 : 0;
-  return s.score - s.hits * 20000 - bottomPenalty - (3 - s.shield) * 1000 + (s.hits === 0 ? 20000 : 0);
+  return s.score - s.hits * HIT_PENALTY - bottomPenalty - (3 - s.shield) * 1000 + (s.hits === 0 ? 20000 : 0);
 }
 async function evaluate(kind, data) {
   const rs = [];
