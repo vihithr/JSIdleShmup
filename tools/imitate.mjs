@@ -67,7 +67,7 @@ const IN = net.IN, HID = net.HID;
 const dw1 = new Float64Array(net.w1.length), db1 = new Float64Array(HID),
       dw2 = new Float64Array(net.w2.length), db2 = new Float64Array(2);
 const order = Array.from({ length: data.length }, (_, i) => i);
-for (let epoch = 0; epoch < 120; epoch++) {
+for (let epoch = 0; epoch < 200; epoch++) {
   for (let i = order.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; [order[i], order[j]] = [order[j], order[i]]; }
   let loss = 0;
   for (const idx of order) {
@@ -88,7 +88,7 @@ for (let epoch = 0; epoch < 120; epoch++) {
     db2[0] += e0; db2[1] += e1;
     for (let i2 = 0; i2 < HID; i2++) { dw2[i2] += e0 * net.h[i2]; dw2[HID + i2] += e1 * net.h[i2]; }
   }
-  const lr = 0.3 / Math.sqrt(epoch + 1);
+  const lr = 0.08 / Math.sqrt(epoch / 4 + 1);
   const n = data.length;
   for (let i = 0; i < net.w1.length; i++) { net.w1[i] -= lr * dw1[i] / n; dw1[i] = 0; }
   for (let i = 0; i < HID; i++) { net.b1[i] -= lr * db1[i] / n; db1[i] = 0; }
