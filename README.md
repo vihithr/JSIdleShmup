@@ -10,7 +10,7 @@ Language: [English](#english) | [中文](#中文)
 **Repository homepage:** https://vihithr.github.io/JSIdleShmup/
 
 ### Overview
-An **idle-first** bullet-hell: one trained pilot plays, you watch the collision engine work. Vanilla HTML5 Canvas, no build step, no runtime dependencies. Open `index.html` directly.
+An **idle-first bullet-hell and RL testbed**: one trained pilot plays while you watch the collision engine work. Vanilla HTML5 Canvas + bitECS at runtime; evolution / imitation / PPO training tools live in `tools/`. Open `index.html` directly.
 
 ### One model: the ensemble pilot
 The pilot blends two learned networks (20% MLP / 80% brain.js). Scoring now rewards **area suppression**: each kill is worth 3x its base score and clears nearby enemy bullets (a bullet-cancel), while grazing is only +1 — killing enemies simply leaves fewer shooters on screen. Camping at the bottom of the screen drains score. The training objective adds a large bottom-time penalty: `score - hits*12000 - bottomRatio*15000 - missingShield*1000 + 15000` for a flawless run.
@@ -75,7 +75,7 @@ Game code: MIT — see [LICENSE](LICENSE). Vendored bitECS: MPL-2.0 (`js/vendor/
 **仓库主页：** https://vihithr.github.io/JSIdleShmup/
 
 ### 项目简介
-一个**放置流**弹幕游戏：只有一个训练好的策略在玩，你主要负责看碰撞引擎工作。原生 HTML5 Canvas，无构建、无运行时依赖，直接打开 `index.html` 即可。
+一个**放置流弹幕游戏 + RL 试验场**：训练好的策略负责玩，你主要负责看碰撞引擎工作。运行时是原生 HTML5 Canvas + bitECS；进化 / 模仿 / PPO 训练工具在 `tools/` 里。直接打开 `index.html` 即可。
 
 ### 唯一模型：集成策略
 集成策略按 20% MLP / 80% brain.js 混合两个网络输出。计分改为奖励**压制版面**：击破得分 ×3 敌人少了自然就少发弹），擦弹只给 +1；缩在屏幕底部会持续扣分。训练目标也加入底部惩罚：`分数 - 中弹*12000 - 底部时间比例*15000 - 缺失护盾*1000 + 无伤奖励15000`。
