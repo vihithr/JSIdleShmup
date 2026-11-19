@@ -198,12 +198,7 @@
     autopilot() {
       const p = this.player;
       const f = this.brain.features(this);
-      const o = SH.BRAIN_TANH ? this.brainNet.run(Array.from(f))
-                              : this.brainNet.run(Array.from(f, v => (v + 1) / 2));
-      let ax = SH.clamp(o[0], -1, 1), ay = SH.clamp(o[1], -1, 1);
-      const m = this.brain.forward(f);
-      ax = SH.clamp(ax * .8 + m[0] * .2, -1, 1);
-      ay = SH.clamp(ay * .8 + m[1] * .2, -1, 1);
+      let ax = SH.clamp(m[0], -1, 1), ay = SH.clamp(m[1], -1, 1);
       p.lastActionX = ax; p.lastActionY = ay;
       return { x: p.x + ax * 95, y: p.y + ay * 95 };
     }

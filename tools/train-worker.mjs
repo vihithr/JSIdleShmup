@@ -28,13 +28,15 @@ const canvas = { getContext: () => ({}), addEventListener() {} };
 const game = new SH.Game(canvas);
 const step = 1 / 60;
 
-parentPort.on('message', ({ id, kind, data, seconds }) => {
+parentPort.on('message', ({ id, kind, data, seconds, curriculum }) => {
   try {
+    SH.CURRICULUM = curriculum || 1;
     if (kind === 'mlp') {
       game.brain.setWeights(data);
       game.autopilot = () => {
         const p = game.player;
         const o = game.brain.forward(game.brain.features(game));
+        p.lastActionX = o[0]; p.lastActionY = o[1];
         return { x: p.x + o[0] * 95, y: p.y + o[1] * 95 };
       };
     } else if (kind === 'brain') {

@@ -2,8 +2,8 @@
 (function (SH) {
   'use strict';
   const W = SH.W, H = SH.H, TAU = SH.TAU;
-  SH.DENSITY = 2.4;
-  SH.FIRE_RATE = 2.4;
+  SH.DENSITY = 1.5;
+  SH.FIRE_RATE = 1.8;
 
   function aimed(game, x, y, speed, count, spread, color, shape) {
     count = Math.max(1, Math.round(count * SH.DENSITY));

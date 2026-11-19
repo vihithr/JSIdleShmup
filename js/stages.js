@@ -76,12 +76,12 @@
       // idle game needs an endless supply of targets and bullet patterns.
       this.ambient -= dt;
       if (this.ambient <= 0 && game.enemyIds.length < 60) {
-        this.ambient = Math.max(.16, .55 - this.stage * .07);
+        this.ambient = Math.max(.25, .8 - this.stage * .08) / SH.CURRICULUM;
         const pool = this.stage === 0 ? ['drifter', 'drifter', 'weaver', 'bomber']
           : this.stage === 1 ? ['drifter', 'weaver', 'orbiter', 'sniper', 'bomber']
           : this.stage === 2 ? ['weaver', 'orbiter', 'spinner', 'sniper', 'bomber', 'tank']
           : ['weaver', 'orbiter', 'spinner', 'sniper', 'bomber', 'tank', 'drifter'];
-        const count = 3 + Math.floor(this.stage) + (this.rng() < .4 ? 1 : 0);
+        const count = Math.max(1, Math.round((2 + Math.floor(this.stage / 2) + (this.rng() < .3 ? 1 : 0)) * SH.CURRICULUM));
         for (let i = 0; i < count; i++) {
           const type = pool[(this.rng() * pool.length) | 0];
           game.spawn(type, 60 + this.rng() * (SH.W - 120), -30 - i * 40);
@@ -92,7 +92,7 @@
       while (this.wave < s.waves.length && s.waves[this.wave].t <= this.elapsed) {
         const w = s.waves[this.wave++];
         const scale = 1 + this.stage * .12;
-        const positions = SH.FORMATIONS[w.formation](w.count, -30, this.rng);
+        const positions = SH.FORMATIONS[w.formation](Math.max(1, Math.round(w.count * SH.CURRICULUM)), -30, this.rng);
         positions.forEach(p => {
           const hp = w.type === 'boss' ? undefined : Math.round((SH.ENEMY_TYPES[w.type].hp) * scale);
           game.spawn(w.type, p.x, p.y, hp ? { hp } : {});

@@ -36,7 +36,7 @@ Retrain (parallel, CPU): `node tools/train-strong.mjs [generations] [population]
 
 ### Enemies and stages
 - 8 enemy archetypes with distinct movement and bullet patterns (aimed, spread, ring, spiral, delayed mines); bosses switch attacks by HP phase.
-- Continuous ambient spawning plus 5 scripted stages, formations, scaling difficulty, a boss per stage. Density knobs `SH.DENSITY` / `SH.FIRE_RATE` currently peak at 300+ enemy bullets on screen.
+- Continuous ambient spawning plus 5 scripted stages, formations, scaling difficulty, a boss per stage. Density knobs `SH.DENSITY` / `SH.FIRE_RATE` are tuned down to 1.5 / 1.8 with a slower ambient spawner, prioritising survivability over spectacle.
 
 ### Quick Start
 ```bash
@@ -62,6 +62,7 @@ Press `V` for collisions, `B` to compare broadphases.
 - `js/game.js` — orchestration, ensemble pilot, HUD.
 - `tools/imitate.mjs` — behaviour cloning from a predictive planner (24k demos).
 - `tools/train-strong.mjs` + `train-worker.mjs` — parallel, hit-penalised evolution of both networks.
+- `tools/train-curriculum.mjs` — survival-first curriculum: few enemies -> full density.
 - `tools/evolve-brain-v2.mjs` — brain.js-only evolution seeded from the MLP weights.
 
 ### License
@@ -101,7 +102,7 @@ Game code: MIT — see [LICENSE](LICENSE). Vendored bitECS: MPL-2.0 (`js/vendor/
 
 ### 敌人与关卡
 - 8 种敌人，独立移动与弹幕（瞄准、散射、环形、螺旋、延时地雷），Boss 按血量换招。
-- 环境持续刷怪 + 5 个脚本关卡、编队、难度递增与每关 Boss；密度系数 `SH.DENSITY` / `SH.FIRE_RATE` 当前峰值 300+ 敌弹同屏。
+- 环境持续刷怪 + 5 个脚本关卡、编队、难度递增与每关 Boss；密度系数 `SH.DENSITY` / `SH.FIRE_RATE` 已下调到 1.5 / 1.8，环境刷怪也更慢，优先保证生存性。
 
 ### 快速开始
 ```bash
